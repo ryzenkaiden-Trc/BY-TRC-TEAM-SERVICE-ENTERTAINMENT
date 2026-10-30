@@ -1,0 +1,7 @@
+--- Developed By TRC
+--- Owner Redsky
+--- Co-Owner Scripterblabla
+--- TRC True Redsky Community
+
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ryzenkaiden-Trc/TRC-PAID-SCRIPT-BY-SC-AND-RED/refs/heads/main/TRC%20Obfuscate"))()
