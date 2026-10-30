@@ -1,0 +1,2274 @@
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local Players          = game:GetService("Players")
+local TweenService     = game:GetService("TweenService")
+local RunService       = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TextService      = game:GetService("TextService")
+local Lighting         = game:GetService("Lighting")
+local Stats            = game:GetService("Stats")
+local LocalPlayer      = Players.LocalPlayer
+local genv             = (getgenv and getgenv()) or _G
+
+local CONFIG = {
+    Name      = "TRC SERVICE",
+    Version   = "v1.0.0",
+    Discord   = "https://discord.gg/TvU9ycm295",
+    ToggleKey = Enum.KeyCode.RightShift,
+    Developer = "Scripterblabla",
+    Founder   = "Redsky",
+
+    DevLink     = "https://notgunslol-lol.github.io/NotGunslol.Offcial/scripterblabla-notgunslol-Gold.html",
+    FounderLink = "https://guns.lol/redsky0",
+    DonateLink  = "https://paypal.me/redskycatlol/5.00",
+
+    Whitelist = { "KENZOM_5", "IRENGpintar_87", "xiomu51", "ryzennece" },
+
+    KickReason = "You're Not on the whitelist to access this script to access it please buy it on our discord server https://discord.gg/TvU9ycm295",
+}
+
+local CHARACTERS = {
+    { Remote = "MahoragaTest",  Name = "Mahoraga Transform", Icon = "rbxassetid://129725128810011" },
+    { Remote = "Yuuji",         Name = "(Old) The Vessel",   Icon = "rbxassetid://116958498672942" },
+    { Remote = "SeniorGojo",    Name = "Super Senior Gojo",  Icon = "rbxassetid://98592916075679" },
+    { Remote = "SeniorThukuna", Name = "Senior Thukuna",     Icon = "rbxassetid://18579697986" },
+}
+
+local function copyToClipboard(text)
+    local fn = setclipboard or toclipboard or set_clipboard or (Clipboard and Clipboard.set)
+    if fn then
+        return pcall(fn, text)
+    end
+    return false
+end
+
+local function isWhitelisted(name)
+    name = string.lower(name)
+    for _, allowed in ipairs(CONFIG.Whitelist) do
+        if string.lower(allowed) == name then
+            return true
+        end
+    end
+    return false
+end
+
+if not isWhitelisted(LocalPlayer.Name) then
+    copyToClipboard(CONFIG.Discord)
+    LocalPlayer:Kick(CONFIG.KickReason)
+    return
+end
+
+if genv.TRC_SERVICE_UNLOAD then
+    pcall(genv.TRC_SERVICE_UNLOAD)
+end
+
+local kp = ColorSequenceKeypoint.new
+local nk = NumberSequenceKeypoint.new
+
+local T = {
+    Bg       = Color3.fromRGB(7, 7, 9),
+    Panel    = Color3.fromRGB(15, 15, 18),
+    Panel2   = Color3.fromRGB(26, 27, 31),
+    Chrome   = Color3.fromRGB(196, 202, 212),
+    ChromeLt = Color3.fromRGB(240, 244, 250),
+    ChromeDk = Color3.fromRGB(88, 92, 102),
+    Green    = Color3.fromRGB(232, 237, 245),
+    Red      = Color3.fromRGB(122, 126, 136),
+    Text     = Color3.fromRGB(242, 244, 248),
+    Muted    = Color3.fromRGB(138, 142, 152),
+    Stroke   = Color3.fromRGB(58, 60, 68),
+    Track    = Color3.fromRGB(44, 45, 52),
+    Ink      = Color3.fromRGB(12, 12, 14),
+}
+local WHITE = Color3.new(1, 1, 1)
+
+local CHROME = ColorSequence.new({
+    kp(0,    Color3.fromRGB(250, 252, 255)),
+    kp(0.3,  Color3.fromRGB(118, 122, 132)),
+    kp(0.55, Color3.fromRGB(236, 239, 245)),
+    kp(0.8,  Color3.fromRGB(84, 87, 96)),
+    kp(1,    Color3.fromRGB(250, 252, 255)),
+})
+
+local F  = { Regular = Enum.Font.Gotham, Medium = Enum.Font.GothamMedium, Bold = Enum.Font.GothamBold, Black = Enum.Font.GothamBlack }
+local AX = { L = Enum.TextXAlignment.Left, C = Enum.TextXAlignment.Center, R = Enum.TextXAlignment.Right }
+local ES = Enum.EasingStyle
+local ED = Enum.EasingDirection
+
+local Alive  = true
+local Conns  = {}
+local function Bind(signal, fn)
+    local c = signal:Connect(fn)
+    table.insert(Conns, c)
+    return c
+end
+
+local function New(class, props, kids)
+    local o = Instance.new(class)
+    for k, v in pairs(props or {}) do
+        if k ~= "Parent" then o[k] = v end
+    end
+    for _, k in ipairs(kids or {}) do k.Parent = o end
+    if props and props.Parent then o.Parent = props.Parent end
+    return o
+end
+
+local function Tween(obj, time, props, style, dir)
+    local tw = TweenService:Create(obj, TweenInfo.new(time, style or ES.Quint, dir or ED.Out), props)
+    tw:Play()
+    return tw
+end
+
+local function Corner(p, r) return New("UICorner", { CornerRadius = UDim.new(0, r), Parent = p }) end
+local function Stroke(p, c, th, tr)
+    return New("UIStroke", { Color = c, Thickness = th or 1, Transparency = tr or 0, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = p })
+end
+local function Gradient(p, c0, c1, rot)
+    return New("UIGradient", { Color = ColorSequence.new(c0, c1), Rotation = rot or 0, Parent = p })
+end
+
+local Spinners = {}
+local function Spin(grad, speed)
+    table.insert(Spinners, { grad, speed })
+    return grad
+end
+
+local function Text(parent, text, ts, color, font, pos, size, ax)
+    return New("TextLabel", {
+        Parent = parent, BackgroundTransparency = 1, Text = text, TextSize = ts,
+        TextColor3 = color or T.Text, Font = font or F.Regular,
+        Position = pos or UDim2.new(), Size = size or UDim2.new(1, 0, 0, ts + 4),
+        TextXAlignment = ax or AX.L, TextYAlignment = Enum.TextYAlignment.Center,
+    })
+end
+
+local function Pill(parent, text, color, pos, size, ts)
+    local f = New("Frame", { Parent = parent, Position = pos, Size = size, BackgroundColor3 = color, BackgroundTransparency = 0.82, BorderSizePixel = 0 })
+    Corner(f, 99)
+    local l = Text(f, text, ts or 10, color, F.Bold, UDim2.new(), UDim2.fromScale(1, 1), AX.C)
+    return f, l
+end
+
+local function Pulse(obj)
+    TweenService:Create(obj, TweenInfo.new(1, ES.Sine, ED.InOut, -1, true), { BackgroundTransparency = 0.75 }):Play()
+end
+
+local function rgbStr(c)
+    return string.format("rgb(%d,%d,%d)", math.floor(c.R * 255), math.floor(c.G * 255), math.floor(c.B * 255))
+end
+
+local function isPointer(i)
+    return i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch
+end
+
+local DragBlocked = false
+local function BlockDrag(obj)
+    obj.InputBegan:Connect(function(i)
+        if isPointer(i) then DragBlocked = true end
+    end)
+end
+Bind(UserInputService.InputEnded, function(i)
+    if isPointer(i) then DragBlocked = false end
+end)
+
+local function Tap(btn, fn)
+    local last = 0
+    local function fire()
+        local now = os.clock()
+        if now - last < 0.25 then return end
+        last = now
+        task.spawn(fn)
+    end
+    btn.Activated:Connect(fire)
+    btn.MouseButton1Click:Connect(fire)
+    local down
+    btn.InputBegan:Connect(function(i)
+        if isPointer(i) then down = Vector2.new(i.Position.X, i.Position.Y) end
+    end)
+    btn.InputEnded:Connect(function(i)
+        if down and isPointer(i) then
+            local up = Vector2.new(i.Position.X, i.Position.Y)
+            local moved = (up - down).Magnitude
+            down = nil
+            if moved < 12 then fire() end
+        end
+    end)
+end
+
+local UIOpen = false
+local SetVisible
+local Unload
+
+local ASSET_DIR = "TRC_SERVICE"
+local RAW = "https://raw.githubusercontent.com/ryzenkaiden-Trc/Test/2e07c162f78339ebffbbf3062f74f33bbbc33b24/"
+local ASSETS = {
+    Icon    = { File = "icon.jpg",    Url = RAW .. "lv_0_20261027094746.jpg" },
+    Banner1 = { File = "banner1.jpg", Url = RAW .. "lv_0_20261027095038.jpg" },
+    Banner2 = { File = "banner2.jpg", Url = RAW .. "lv_0_20261027094949.jpg" },
+}
+local Assets     = {}
+local AssetHooks = {}
+local ICON_ZOOM = 1.2
+
+local function validImage(b)
+    return type(b) == "string" and #b > 100 and (b:sub(1, 3) == "\255\216\255" or b:sub(1, 4) == "\137PNG")
+end
+
+local function httpGet(url)
+    local ok, res = pcall(function() return game:HttpGet(url) end)
+    if ok and validImage(res) then return res end
+    local req = (syn and syn.request) or http_request or request or (http and http.request)
+    if req then
+        local ok2, r = pcall(req, { Url = url, Method = "GET" })
+        if ok2 and type(r) == "table" and validImage(r.Body) then return r.Body end
+    end
+    return nil
+end
+
+local function loadAsset(key)
+    local a = ASSETS[key]
+    task.spawn(function()
+        local ok, err = pcall(function()
+            local toAsset = getcustomasset or getsynasset
+            if not (writefile and isfile and toAsset) then error("executor has no writefile/isfile/getcustomasset") end
+
+            local useDir = makefolder and isfolder
+            if useDir and not isfolder(ASSET_DIR) then makefolder(ASSET_DIR) end
+            local path = useDir and (ASSET_DIR .. "/" .. a.File) or ("TRC_" .. a.File)
+
+            local cached = false
+            if isfile(path) then
+                if readfile then
+                    local okr, data = pcall(readfile, path)
+                    cached = okr and validImage(data)
+                else
+                    cached = true
+                end
+            end
+
+            if not cached then
+                local body = httpGet(a.Url)
+                if not body then error("download failed") end
+                writefile(path, body)
+            end
+
+            local asset = toAsset(path)
+            if not asset or asset == "" then error("getcustomasset returned nothing") end
+            Assets[key] = asset
+        end)
+        if not ok then
+            warn("[TRC SERVICE] image '" .. key .. "' not loaded: " .. tostring(err))
+            return
+        end
+        if Alive then
+            for _, fn in ipairs(AssetHooks[key] or {}) do task.spawn(fn, Assets[key]) end
+        end
+    end)
+end
+
+local function OnAsset(key, fn)
+    if Assets[key] then
+        task.spawn(fn, Assets[key])
+        return
+    end
+    AssetHooks[key] = AssetHooks[key] or {}
+    table.insert(AssetHooks[key], fn)
+end
+
+for key in pairs(ASSETS) do loadAsset(key) end
+
+local IconBuilders = {}
+
+local function IconBar(parent, cx, cy, len, thick, rot, tints)
+    local b = New("Frame", {
+        Parent = parent, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(cx, cy),
+        Size = UDim2.fromOffset(len, thick), Rotation = rot or 0, BackgroundColor3 = WHITE, BorderSizePixel = 0,
+    })
+    Corner(b, 99)
+    table.insert(tints, { b, "BackgroundColor3" })
+    return b
+end
+
+IconBuilders.code = function(h, tn)
+    IconBar(h, 6.5, 9, 8.5, 2.4, -45, tn)
+    IconBar(h, 6.5, 15, 8.5, 2.4, 45, tn)
+    IconBar(h, 17.5, 9, 8.5, 2.4, 45, tn)
+    IconBar(h, 17.5, 15, 8.5, 2.4, -45, tn)
+    IconBar(h, 12, 12, 14, 2.4, -72, tn)
+end
+
+IconBuilders.user = function(h, tn)
+    local head = New("Frame", {
+        Parent = h, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromOffset(12, 2.5),
+        Size = UDim2.fromOffset(7, 7), BackgroundTransparency = 1, BorderSizePixel = 0,
+    })
+    Corner(head, 99)
+    table.insert(tn, { Stroke(head, WHITE, 2, 0), "Color" })
+    local clip = New("Frame", {
+        Parent = h, Position = UDim2.fromOffset(0, 14), Size = UDim2.fromOffset(24, 9),
+        BackgroundTransparency = 1, ClipsDescendants = true, BorderSizePixel = 0,
+    })
+    local body = New("Frame", {
+        Parent = clip, Position = UDim2.fromOffset(5, 2), Size = UDim2.fromOffset(14, 14),
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+    })
+    Corner(body, 99)
+    table.insert(tn, { Stroke(body, WHITE, 2, 0), "Color" })
+end
+
+IconBuilders.bars = function(h, tn)
+    local specs = { { 4, 11, 4, 9 }, { 10, 5, 4, 15 }, { 16, 8, 4, 12 } }
+    for _, s in ipairs(specs) do
+        local f = New("Frame", {
+            Parent = h, Position = UDim2.fromOffset(s[1], s[2]), Size = UDim2.fromOffset(s[3], s[4]),
+            BackgroundColor3 = WHITE, BorderSizePixel = 0,
+        })
+        Corner(f, 2)
+        table.insert(tn, { f, "BackgroundColor3" })
+    end
+end
+
+IconBuilders.chevron = function(h, tn)
+    IconBar(h, 13, 8.5, 10, 2.4, 45, tn)
+    IconBar(h, 13, 15.5, 10, 2.4, -45, tn)
+end
+
+IconBuilders.x = function(h, tn)
+    IconBar(h, 12, 12, 16, 2.4, 45, tn)
+    IconBar(h, 12, 12, 16, 2.4, -45, tn)
+end
+
+IconBuilders.minus = function(h, tn)
+    IconBar(h, 12, 12, 14, 2.4, 0, tn)
+end
+
+local function MakeIcon(kind, parent, center, px, color)
+    local holder = New("Frame", {
+        Parent = parent, AnchorPoint = Vector2.new(0.5, 0.5), Position = center,
+        Size = UDim2.fromOffset(24, 24), BackgroundTransparency = 1,
+    })
+    local base = px / 24
+    local sc = New("UIScale", { Parent = holder, Scale = base })
+    local tints = {}
+    IconBuilders[kind](holder, tints)
+    local obj = { Frame = holder, Scale = sc, Base = base }
+    function obj.SetColor(c, t)
+        for _, p in ipairs(tints) do
+            if t and t > 0 then
+                Tween(p[1], t, { [p[2]] = c })
+            else
+                p[1][p[2]] = c
+            end
+        end
+    end
+    obj.SetColor(color or T.Text)
+    return obj
+end
+
+local function Logo(parent, size, pos)
+    local holder = New("Frame", { Parent = parent, Position = pos, Size = UDim2.fromOffset(size, size), BackgroundTransparency = 1 })
+    local f = New("Frame", {
+        Parent = holder, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0,
+    })
+    local pop = New("UIScale", { Parent = f })
+    Corner(f, math.floor(size * 0.32))
+    Gradient(f, Color3.fromRGB(44, 45, 50), Color3.fromRGB(8, 8, 10), 135)
+    local st = Stroke(f, WHITE, math.max(1.5, size / 24), 0)
+    local g = New("UIGradient", {
+        Parent = st, Color = CHROME,
+        Transparency = NumberSequence.new({ nk(0, 0), nk(0.5, 0.85), nk(1, 0) }),
+    })
+    Spin(g, 140)
+    local tLbl = Text(f, "T", math.floor(size * 0.55), WHITE, F.Black, UDim2.new(), UDim2.fromScale(1, 1), AX.C)
+
+    local clip = New("CanvasGroup", {
+        Parent = f, Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
+        BorderSizePixel = 0, GroupTransparency = 1, Visible = false,
+    })
+    Corner(clip, math.floor(size * 0.32))
+    local img = New("ImageLabel", {
+        Parent = clip, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromScale(ICON_ZOOM, ICON_ZOOM), BackgroundTransparency = 1,
+        BorderSizePixel = 0, ScaleType = Enum.ScaleType.Crop, Image = "",
+    })
+    OnAsset("Icon", function(url)
+        if not img.Parent then return end
+        img.Image = url
+        clip.Visible = true
+        Tween(clip, 0.5, { GroupTransparency = 0 }, ES.Quad)
+        Tween(tLbl, 0.5, { TextTransparency = 1 }, ES.Quad)
+    end)
+    return holder, pop
+end
+
+local function Button(parent, text, pos, size, style, onClick)
+    local base, hover, tc, rc
+    if style == "primary" then
+        base, hover, tc, rc = T.Chrome, T.ChromeLt, T.Ink, T.Ink
+    elseif style == "light" then
+        base, hover, tc, rc = Color3.fromRGB(246, 248, 252), WHITE, T.Ink, T.Ink
+    else
+        base, hover, tc, rc = Color3.fromRGB(34, 35, 40), Color3.fromRGB(58, 60, 68), T.Text, WHITE
+    end
+
+    local holder = New("Frame", { Parent = parent, Position = pos, Size = size, BackgroundTransparency = 1 })
+    local b = New("TextButton", {
+        Parent = holder, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromScale(1, 1), BackgroundColor3 = base, AutoButtonColor = false,
+        Text = text, TextColor3 = tc, Font = F.Bold, TextSize = 13, BorderSizePixel = 0,
+    })
+    Corner(b, 10)
+    if style ~= "ghost" then
+
+        New("UIGradient", { Parent = b, Rotation = 90, Color = ColorSequence.new(WHITE, Color3.fromRGB(168, 171, 180)) })
+    end
+    local sc = New("UIScale", { Parent = b })
+    local rip = New("CanvasGroup", { Parent = b, Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 3 })
+    Corner(rip, 10)
+
+    local hovering = false
+    b.MouseEnter:Connect(function()
+        hovering = true
+        Tween(b, 0.2, { BackgroundColor3 = hover })
+        Tween(sc, 0.4, { Scale = 1.045 }, ES.Back)
+    end)
+    b.MouseLeave:Connect(function()
+        hovering = false
+        Tween(b, 0.25, { BackgroundColor3 = base })
+        Tween(sc, 0.3, { Scale = 1 })
+    end)
+    b.MouseButton1Down:Connect(function()
+        Tween(sc, 0.1, { Scale = 0.93 }, ES.Quad)
+        local sz = b.AbsoluteSize
+        local rel = UserInputService:GetMouseLocation() - b.AbsolutePosition
+        if rel.X < 0 or rel.Y < 0 or rel.X > sz.X or rel.Y > sz.Y then rel = sz / 2 end
+        local ring = New("Frame", {
+            Parent = rip, AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(rel.X / math.max(sz.X, 1), rel.Y / math.max(sz.Y, 1)),
+            Size = UDim2.fromScale(0, 0), SizeConstraint = Enum.SizeConstraint.RelativeXX,
+            BackgroundColor3 = rc, BackgroundTransparency = 0.8, BorderSizePixel = 0,
+        })
+        New("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = ring })
+        Tween(ring, 0.6, { Size = UDim2.fromScale(2.6, 2.6) }, ES.Quint)
+        Tween(ring, 0.6, { BackgroundTransparency = 1 }, ES.Quad)
+        task.delay(0.65, function() if ring.Parent then ring:Destroy() end end)
+    end)
+    b.MouseButton1Up:Connect(function()
+        Tween(sc, 0.55, { Scale = hovering and 1.045 or 1 }, ES.Elastic)
+    end)
+    Tap(b, function()
+        if onClick then onClick() end
+    end)
+    return holder, b
+end
+
+local function IconButton(parent, kind, pos, size, onClick, hoverColor)
+    local holder, b = Button(parent, "", pos, size, "ghost", onClick)
+    local ic = MakeIcon(kind, b, UDim2.fromScale(0.5, 0.5), 16, T.Muted)
+    b.MouseEnter:Connect(function() ic.SetColor(hoverColor or T.Text, 0.2) end)
+    b.MouseLeave:Connect(function() ic.SetColor(T.Muted, 0.2) end)
+    return holder, b, ic
+end
+
+local function Toggle(parent, pos, default, callback)
+    local OFF, KOFF, KON = T.Track, Color3.fromRGB(150, 153, 162), T.Ink
+    local XOFF, XON = UDim2.new(0, 11, 0.5, 0), UDim2.new(0, 29, 0.5, 0)
+    local bg = New("TextButton", {
+        Parent = parent, Position = pos, Size = UDim2.fromOffset(40, 22), Text = "", AutoButtonColor = false,
+        BackgroundColor3 = default and T.Chrome or OFF, BorderSizePixel = 0,
+    })
+    Corner(bg, 99)
+    local knob = New("Frame", {
+        Parent = bg, AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(16, 16),
+        BackgroundColor3 = default and KON or KOFF, BorderSizePixel = 0, Position = default and XON or XOFF,
+    })
+    Corner(knob, 99)
+    local state = default
+    local api = {}
+    function api.Set(v, silent)
+        state = v
+        Tween(bg, 0.25, { BackgroundColor3 = v and T.Chrome or OFF })
+        Tween(knob, 0.25, { BackgroundColor3 = v and KON or KOFF })
+        Tween(knob, 0.5, { Position = v and XON or XOFF }, ES.Back)
+        Tween(knob, 0.12, { Size = UDim2.fromOffset(22, 14) }, ES.Quad)
+        task.delay(0.12, function()
+            if knob.Parent then Tween(knob, 0.5, { Size = UDim2.fromOffset(16, 16) }, ES.Back) end
+        end)
+        if not silent and callback then task.spawn(callback, v) end
+    end
+    function api.Get() return state end
+    Tap(bg, function() api.Set(not state) end)
+    return api
+end
+
+local function Slider(parent, pos, size, label, min, max, default, fmt, callback)
+    local holder = New("Frame", { Parent = parent, Position = pos, Size = size, BackgroundTransparency = 1 })
+    Text(holder, label, 12, T.Muted, F.Medium, UDim2.new(), UDim2.new(0.7, 0, 0, 16))
+    local valLbl = Text(holder, "", 12, T.Text, F.Bold, UDim2.new(0.7, 0, 0, 0), UDim2.new(0.3, 0, 0, 16), AX.R)
+    local bar = New("Frame", { Parent = holder, Position = UDim2.new(0, 0, 0, 25), Size = UDim2.new(1, 0, 0, 6), BackgroundColor3 = T.Track, BorderSizePixel = 0 })
+    Corner(bar, 99)
+    local fill = New("Frame", { Parent = bar, Size = UDim2.fromScale(0, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0 })
+    Corner(fill, 99)
+    Gradient(fill, T.ChromeDk, T.ChromeLt, 0)
+    local knob = New("Frame", { Parent = bar, AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(14, 14), Position = UDim2.fromScale(0, 0.5), BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 2 })
+    Corner(knob, 99)
+    local hit = New("TextButton", { Parent = holder, Position = UDim2.new(0, -6, 0, 14), Size = UDim2.new(1, 12, 0, 24), BackgroundTransparency = 1, Text = "", ZIndex = 3 })
+    BlockDrag(hit)
+
+    local function render(v, animate)
+        local a = (v - min) / (max - min)
+        if animate then
+            Tween(fill, 0.12, { Size = UDim2.fromScale(a, 1) }, ES.Quad)
+            Tween(knob, 0.12, { Position = UDim2.fromScale(a, 0.5) }, ES.Quad)
+        else
+            fill.Size = UDim2.fromScale(a, 1)
+            knob.Position = UDim2.fromScale(a, 0.5)
+        end
+        valLbl.Text = string.format(fmt, v)
+    end
+    render(default, false)
+
+    local dragging = false
+    local function setFromX(x)
+        local a = math.clamp((x - bar.AbsolutePosition.X) / math.max(bar.AbsoluteSize.X, 1), 0, 1)
+        local v = min + (max - min) * a
+        render(v, true)
+        if callback then callback(v) end
+    end
+    hit.InputBegan:Connect(function(i)
+        if isPointer(i) then
+            dragging = true
+            Tween(knob, 0.35, { Size = UDim2.fromOffset(19, 19) }, ES.Back)
+            setFromX(i.Position.X)
+        end
+    end)
+    Bind(UserInputService.InputChanged, function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            setFromX(i.Position.X)
+        end
+    end)
+    Bind(UserInputService.InputEnded, function(i)
+        if dragging and isPointer(i) then
+            dragging = false
+            Tween(knob, 0.4, { Size = UDim2.fromOffset(14, 14) }, ES.Back)
+        end
+    end)
+end
+
+local WIN_W, WIN_H = 740, 460
+local SB_W, TOP_H = 176, 54
+
+local Gui = New("ScreenGui", {
+    Name = "TRC_SERVICE", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    IgnoreGuiInset = true, DisplayOrder = 999,
+})
+if syn and syn.protect_gui then pcall(syn.protect_gui, Gui) end
+local okParent = pcall(function() Gui.Parent = (gethui and gethui()) or game:GetService("CoreGui") end)
+if not okParent or not Gui.Parent then
+    Gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local Draggables = {}
+local ActiveDrag = nil
+
+local function anchorPx(obj)
+    local ap, as, g = obj.AbsolutePosition, obj.AbsoluteSize, Gui.AbsolutePosition
+    return ap.X - g.X + obj.AnchorPoint.X * as.X, ap.Y - g.Y + obj.AnchorPoint.Y * as.Y
+end
+
+local function MakeDraggable(handles, target, opts)
+    opts = opts or {}
+    if typeof(handles) == "Instance" then handles = { handles } end
+    local d = {
+        Held = false, Dragging = false, Settling = false,
+        SX = 0, SY = 0, GX = 0, GY = 0, CX = 0, CY = 0, Start = Vector3.new(),
+    }
+    table.insert(Draggables, d)
+
+    local function clampGoal(gx, gy)
+        local vp = Gui.AbsoluteSize
+        local w, h = target.AbsoluteSize.X, target.AbsoluteSize.Y
+        local ax, ay = target.AnchorPoint.X, target.AnchorPoint.Y
+        local keep = opts.Keep or math.huge
+        local kx, ky = math.min(w, keep), math.min(h, keep)
+        local lMin = -(w - kx)
+        local left = math.clamp(gx - ax * w, lMin, math.max(vp.X - kx, lMin))
+        local tMin = opts.KeepTop and 0 or -(h - ky)
+        local top = math.clamp(gy - ay * h, tMin, math.max(vp.Y - ky, tMin))
+        return left + ax * w, top + ay * h
+    end
+
+    local function onBegin(i)
+        if not isPointer(i) or ActiveDrag or not Alive then return end
+        ActiveDrag = d
+        task.defer(function()
+            if DragBlocked or not Alive then
+                if ActiveDrag == d then ActiveDrag = nil end
+                return
+            end
+            d.Held, d.Dragging = true, false
+            d.Start = i.Position
+            d.SX, d.SY = anchorPx(target)
+            d.GX, d.GY, d.CX, d.CY = d.SX, d.SY, d.SX, d.SY
+        end)
+    end
+    for _, h in ipairs(handles) do
+        h.InputBegan:Connect(onBegin)
+    end
+
+    Bind(UserInputService.InputChanged, function(i)
+        if not d.Held then return end
+        if i.UserInputType ~= Enum.UserInputType.MouseMovement and i.UserInputType ~= Enum.UserInputType.Touch then return end
+        local dx, dy = i.Position.X - d.Start.X, i.Position.Y - d.Start.Y
+        if not d.Dragging and (math.abs(dx) + math.abs(dy)) > 5 then
+            d.Dragging, d.Settling = true, true
+            if opts.OnStart then task.spawn(opts.OnStart) end
+        end
+        if d.Dragging then
+            d.GX, d.GY = clampGoal(d.SX + dx, d.SY + dy)
+        end
+    end)
+
+    Bind(UserInputService.InputEnded, function(i)
+        if d.Held and isPointer(i) then
+            d.Held = false
+            if ActiveDrag == d then ActiveDrag = nil end
+            if d.Dragging then
+                d.Dragging = false
+                if opts.OnEnd then task.spawn(opts.OnEnd) end
+            elseif opts.OnTap then
+                task.spawn(opts.OnTap)
+            end
+        end
+    end)
+
+    function d.Step(dt)
+        if not d.Settling then return end
+        local a = 1 - math.exp(-dt * 20)
+        d.CX = d.CX + (d.GX - d.CX) * a
+        d.CY = d.CY + (d.GY - d.CY) * a
+        local vp = Gui.AbsoluteSize
+        target.Position = UDim2.fromScale(d.CX / math.max(vp.X, 1), d.CY / math.max(vp.Y, 1))
+        if not d.Dragging and math.abs(d.GX - d.CX) < 0.25 and math.abs(d.GY - d.CY) < 0.25 then
+            d.Settling = false
+            target.Position = UDim2.fromScale(d.GX / math.max(vp.X, 1), d.GY / math.max(vp.Y, 1))
+        end
+    end
+    return d
+end
+
+local Root = New("Frame", {
+    Name = "Root", Parent = Gui, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+    Size = UDim2.fromOffset(WIN_W, WIN_H), BackgroundTransparency = 1, Visible = false,
+})
+local FitScale = New("UIScale", { Parent = Root })
+local function fit()
+    local vp = Gui.AbsoluteSize
+    FitScale.Scale = math.clamp(math.min((vp.X - 20) / WIN_W, (vp.Y - 20) / WIN_H), 0.4, 1)
+end
+fit()
+Gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+
+local Window = New("CanvasGroup", {
+    Name = "Window", Parent = Root, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+    Size = UDim2.fromScale(1, 1), BackgroundColor3 = T.Bg, BorderSizePixel = 0, GroupTransparency = 1,
+})
+Corner(Window, 16)
+local WinScale = New("UIScale", { Parent = Window, Scale = 0.86 })
+local WinStroke = New("UIStroke", { Parent = Window, Color = WHITE, Thickness = 1.6, Transparency = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+Spin(New("UIGradient", {
+    Parent = WinStroke, Color = CHROME,
+    Transparency = NumberSequence.new({ nk(0, 0.05), nk(0.5, 0.92), nk(1, 0.05) }),
+}), 70)
+
+local Bg = New("Frame", { Parent = Window, Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 0 })
+Spin(New("UIGradient", {
+    Parent = Bg, Rotation = 35,
+    Color = ColorSequence.new({ kp(0, Color3.fromRGB(40, 41, 47)), kp(0.45, Color3.fromRGB(8, 8, 10)), kp(1, Color3.fromRGB(30, 31, 36)) }),
+}), 6)
+
+local ToastObj
+local function Toast(msg, color)
+    if ToastObj then ToastObj:Destroy() end
+    color = color or T.Chrome
+    local t = New("CanvasGroup", {
+        Parent = Window, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, 50),
+        Size = UDim2.fromOffset(330, 38), BackgroundColor3 = Color3.fromRGB(22, 23, 27), GroupTransparency = 1, ZIndex = 50,
+    })
+    Corner(t, 19)
+    Stroke(t, color, 1, 0.4)
+    local dot = New("Frame", {
+        Parent = t, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0, 20, 0.5, 0),
+        Size = UDim2.fromOffset(0, 0), BackgroundColor3 = color, BorderSizePixel = 0,
+    })
+    Corner(dot, 99)
+    local l = Text(t, msg, 12, T.Text, F.Medium, UDim2.fromOffset(34, 0), UDim2.new(1, -44, 1, 0))
+    l.TextTruncate = Enum.TextTruncate.AtEnd
+    ToastObj = t
+    Tween(t, 0.65, { Position = UDim2.new(0.5, 0, 1, -18) }, ES.Back)
+    Tween(t, 0.3, { GroupTransparency = 0 }, ES.Quad)
+    task.delay(0.15, function()
+        if dot.Parent then Tween(dot, 0.7, { Size = UDim2.fromOffset(8, 8) }, ES.Elastic) end
+    end)
+    task.delay(2.6, function()
+        if t.Parent then
+            Tween(t, 0.4, { Position = UDim2.new(0.5, 0, 1, 50) }, ES.Quint, ED.In)
+            Tween(t, 0.35, { GroupTransparency = 1 }, ES.Quad)
+            task.delay(0.45, function() if t.Parent then t:Destroy() end end)
+        end
+    end)
+end
+
+local function CopyDiscord()
+    local ok = copyToClipboard(CONFIG.Discord)
+    if ok then
+        Toast("Discord link copied to clipboard", T.Green)
+    else
+        Toast("Clipboard not supported: " .. CONFIG.Discord, T.Red)
+    end
+end
+
+local Logs = {}
+local RenderLog
+local function Log(title, tag, color)
+    table.insert(Logs, 1, { title = title, tag = tag, color = color, time = os.date("%H:%M:%S") })
+    if #Logs > 3 then table.remove(Logs) end
+    if RenderLog then RenderLog() end
+end
+
+local Executed = 0
+local ExecLbl
+
+local Content = New("Frame", {
+    Parent = Window, Position = UDim2.fromOffset(SB_W, TOP_H),
+    Size = UDim2.fromOffset(WIN_W - SB_W, WIN_H - TOP_H), BackgroundTransparency = 1,
+})
+
+local Pages = {}
+local function NewPage(id)
+    local holder = New("Frame", { Parent = Content, Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false })
+    local scroller = New("ScrollingFrame", {
+        Parent = holder, Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0,
+        ScrollBarThickness = 3, ScrollBarImageColor3 = T.Chrome, CanvasSize = UDim2.new(),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollingDirection = Enum.ScrollingDirection.Y,
+    })
+    New("UIListLayout", { Parent = scroller, Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder })
+    New("UIPadding", {
+        Parent = scroller, PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 14),
+        PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 14),
+    })
+    BlockDrag(scroller)
+    Pages[id] = { Frame = holder, Scroller = scroller, Sections = {} }
+    return Pages[id]
+end
+
+local function SecTween(s, t, goal, style, dir)
+    if s.Tw then s.Tw:Cancel() end
+    s.Tw = Tween(s.Frame, t, { GroupTransparency = goal }, style or ES.Quad, dir or ED.Out)
+end
+
+local function NewSection(page, title)
+    local sec = { N = 0, Rest = 0 }
+    sec.Frame = New("CanvasGroup", {
+        Parent = page.Scroller, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = T.Panel, BackgroundTransparency = 0.15, BorderSizePixel = 0,
+        LayoutOrder = #page.Sections + 1,
+    })
+    Corner(sec.Frame, 12)
+    Stroke(sec.Frame, T.Stroke, 1, 0.5)
+    New("UIPadding", {
+        Parent = sec.Frame, PaddingTop = UDim.new(0, 12), PaddingBottom = UDim.new(0, 12),
+        PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12),
+    })
+    New("UIListLayout", { Parent = sec.Frame, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
+    sec.Head = Text(sec.Frame, string.upper(title), 10, T.Muted, F.Bold, UDim2.new(), UDim2.new(1, 0, 0, 16))
+    sec.Head.LayoutOrder = 0
+    table.insert(page.Sections, sec)
+    return sec
+end
+
+local function nextOrder(sec)
+    sec.N = sec.N + 1
+    return sec.N
+end
+
+local function Row(sec, h, still)
+    local row = New("Frame", {
+        Parent = sec.Frame, LayoutOrder = nextOrder(sec), Size = UDim2.new(1, 0, 0, h),
+        BackgroundColor3 = T.Panel2, BackgroundTransparency = 0.35, BorderSizePixel = 0,
+    })
+    Corner(row, 10)
+    if not still then
+        local bar = New("Frame", {
+            Parent = row, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 3, 0.5, 0),
+            Size = UDim2.fromOffset(3, 0), BackgroundColor3 = T.ChromeLt, BorderSizePixel = 0,
+        })
+        Corner(bar, 99)
+        row.MouseEnter:Connect(function()
+            Tween(row, 0.2, { BackgroundTransparency = 0.05 })
+            Tween(bar, 0.45, { Size = UDim2.fromOffset(3, 22) }, ES.Back)
+        end)
+        row.MouseLeave:Connect(function()
+            Tween(row, 0.25, { BackgroundTransparency = 0.35 })
+            Tween(bar, 0.3, { Size = UDim2.fromOffset(3, 0) })
+        end)
+    end
+    return row
+end
+
+local function RowTitle(row, x, name, desc)
+    if desc then
+        Text(row, name, 13, T.Text, F.Bold, UDim2.fromOffset(x, 7), UDim2.new(1, -(x + 100), 0, 17))
+        Text(row, desc, 11, T.Muted, F.Regular, UDim2.fromOffset(x, 25), UDim2.new(1, -(x + 100), 0, 14))
+    else
+        Text(row, name, 13, T.Text, F.Bold, UDim2.fromOffset(x, 0), UDim2.new(1, -(x + 100), 1, 0))
+    end
+end
+
+local function AddButton(sec, o)
+    local row = Row(sec, o.Desc and 48 or 40)
+    local tx = 14
+    if o.Icon then
+        local box = New("Frame", {
+            Parent = row, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.5, 0),
+            Size = UDim2.fromOffset(28, 28), BackgroundColor3 = WHITE, BackgroundTransparency = 0.92, BorderSizePixel = 0,
+        })
+        Corner(box, 9)
+        local ic = MakeIcon(o.Icon, box, UDim2.fromScale(0.5, 0.5), 16, T.Text)
+        tx = 50
+        row.MouseEnter:Connect(function() Tween(ic.Frame, 0.4, { Position = UDim2.new(0.5, 4, 0.5, 0) }, ES.Back) end)
+        row.MouseLeave:Connect(function() Tween(ic.Frame, 0.4, { Position = UDim2.fromScale(0.5, 0.5) }, ES.Back) end)
+    end
+    RowTitle(row, tx, o.Name, o.Desc)
+    local label = o.Button or "Execute"
+    local holder, btn
+    holder, btn = Button(row, label, UDim2.new(1, -88, 0.5, -15), UDim2.fromOffset(78, 30), o.Style or "primary", function()
+        local ok = true
+        if o.Callback then ok = o.Callback() end
+        if o.Flash then
+            btn.Text = (ok ~= false) and "Done" or "Failed"
+            task.delay(1.1, function()
+                if btn.Parent then btn.Text = label end
+            end)
+        end
+    end)
+    return btn
+end
+
+local function AddToggle(sec, o)
+    local row = Row(sec, o.Desc and 48 or 40)
+    RowTitle(row, 14, o.Name, o.Desc)
+    return Toggle(row, UDim2.new(1, -54, 0.5, -11), o.Default or false, o.Callback)
+end
+
+local function AddSlider(sec, o)
+    local row = Row(sec, 56)
+    Slider(row, UDim2.fromOffset(14, 9), UDim2.new(1, -28, 0, 38), o.Name, o.Min, o.Max, o.Default, o.Format or "%.2f", o.Callback)
+    return row
+end
+
+local function AddStat(sec, name, value)
+    local row = Row(sec, 34)
+    Text(row, name, 12, T.Muted, F.Medium, UDim2.fromOffset(14, 0), UDim2.new(0.5, -14, 1, 0))
+    return Text(row, value, 13, T.Text, F.Bold, UDim2.new(0.5, 0, 0, 0), UDim2.new(0.5, -14, 1, 0), AX.R)
+end
+
+local function AddBanner(sec, h, key)
+    local row = New("CanvasGroup", {
+        Parent = sec.Frame, LayoutOrder = nextOrder(sec), Size = UDim2.new(1, 0, 0, h),
+        BackgroundColor3 = Color3.fromRGB(22, 23, 27), BorderSizePixel = 0,
+    })
+    Corner(row, 10)
+    local o1 = New("Frame", {
+        Parent = row, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, -30, 0.5, 34),
+        Size = UDim2.fromOffset(h * 2, h * 2), BackgroundColor3 = WHITE, BorderSizePixel = 0,
+    })
+    Corner(o1, 99)
+    Spin(Gradient(o1, Color3.fromRGB(205, 210, 220), Color3.fromRGB(12, 12, 14), 30), 35)
+    local o2 = New("Frame", {
+        Parent = row, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, -96, 1, 4),
+        Size = UDim2.fromOffset(h, h), BackgroundColor3 = WHITE, BorderSizePixel = 0,
+    })
+    Corner(o2, 99)
+    Spin(Gradient(o2, Color3.fromRGB(96, 100, 110), Color3.fromRGB(14, 14, 16), 200), -60)
+
+    if key then
+        local img = New("ImageLabel", {
+            Parent = row, Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0,
+            ScaleType = Enum.ScaleType.Crop, Image = "", ImageTransparency = 1, Visible = false,
+        })
+
+        local shade = New("Frame", {
+            Parent = row, Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(4, 4, 6),
+            BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false,
+        })
+        New("UIGradient", {
+            Parent = shade,
+            Transparency = NumberSequence.new({ nk(0, 0.08), nk(0.55, 0.45), nk(1, 0.85) }),
+        })
+        OnAsset(key, function(url)
+            if not img.Parent then return end
+            img.Image = url
+            img.Visible = true
+            shade.Visible = true
+            Tween(img, 0.6, { ImageTransparency = 0 }, ES.Quad)
+            Tween(shade, 0.6, { BackgroundTransparency = 0 }, ES.Quad)
+        end)
+    end
+    return row
+end
+
+local P1 = NewPage("Script")
+
+do
+    local function findEvent()
+        local rs = game:GetService("ReplicatedStorage")
+        local bridge = rs:FindFirstChild("ffrostflame_bridgenet2@0.5.6")
+        if not bridge then
+
+            for _, ch in ipairs(rs:GetChildren()) do
+                if ch.Name:find("^ffrostflame_bridgenet2") then
+                    bridge = ch
+                    break
+                end
+            end
+        end
+        return bridge and bridge:FindFirstChild("dataRemoteEvent")
+    end
+
+    local function changeCharacter(c)
+        local ok = false
+        pcall(function()
+            local event = findEvent()
+            if event then
+                event:FireServer({
+                    {
+                        Name = c.Remote,
+                        Type = "Change",
+                    },
+                    "\x0F",
+                })
+                ok = true
+            end
+        end)
+        if ok then
+            Executed = Executed + 1
+            if ExecLbl then ExecLbl.Text = tostring(Executed) end
+            Toast("Changed to: " .. c.Name, T.Green)
+            Log(c.Name, "Changed", T.Green)
+        else
+            Toast("Remote not found in this game", T.Red)
+            Log(c.Name, "Error", T.Red)
+        end
+        return ok
+    end
+
+    local function AddCharacter(sec, c)
+        local row = Row(sec, 54)
+        local img = New("ImageLabel", {
+            Parent = row, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.5, 0),
+            Size = UDim2.fromOffset(36, 36), BackgroundColor3 = T.Panel, BorderSizePixel = 0,
+            Image = c.Icon or "", ScaleType = Enum.ScaleType.Crop,
+        })
+        Corner(img, 10)
+        Stroke(img, T.Stroke, 1, 0.3)
+        RowTitle(row, 58, c.Name, c.Remote)
+        local holder, btn
+        holder, btn = Button(row, "Change", UDim2.new(1, -88, 0.5, -15), UDim2.fromOffset(78, 30), "primary", function()
+            local ok = changeCharacter(c)
+            btn.Text = ok and "Done" or "Failed"
+            task.delay(1.1, function()
+                if btn.Parent then btn.Text = "Change" end
+            end)
+        end)
+    end
+
+    local secChar = NewSection(P1, "Ps+ Admin Char")
+
+    do
+        local r = Row(secChar, 54, true)
+        Pill(r, "NOTE", T.Chrome, UDim2.fromOffset(12, 18), UDim2.fromOffset(46, 18), 9)
+        local t = Text(r, "Make sure you own the Ps+ Gamepass to use the Admin Char. If you don't have it, it will not work.", 11, Color3.fromRGB(190, 195, 205), F.Medium, UDim2.fromOffset(68, 0), UDim2.new(1, -80, 1, 0))
+        t.TextWrapped = true
+    end
+
+    for _, c in ipairs(CHARACTERS) do
+        AddCharacter(secChar, c)
+    end
+end
+
+local secSess = NewSection(P1, "Session")
+local PingLbl = AddStat(secSess, "Ping", "0 ms")
+local UpLbl   = AddStat(secSess, "Uptime", "00:00:00")
+ExecLbl       = AddStat(secSess, "Executed", "0")
+local executor = "Unknown"
+pcall(function() if identifyexecutor then executor = tostring((identifyexecutor())) end end)
+local ExeLbl = AddStat(secSess, "Executor", executor)
+ExeLbl.TextTruncate = Enum.TextTruncate.AtEnd
+
+local pingRow = Row(secSess, 76, true)
+local PingHolder = New("Frame", { Parent = pingRow, Position = UDim2.fromOffset(14, 12), Size = UDim2.new(1, -28, 1, -24), BackgroundTransparency = 1 })
+local PingBars = {}
+for i = 1, 10 do
+    local b = New("Frame", {
+        Parent = PingHolder, AnchorPoint = Vector2.new(0, 1), Position = UDim2.new((i - 1) / 10, 0, 1, 0),
+        Size = UDim2.new(0.08, 0, 0, 3), BackgroundColor3 = Color3.fromRGB(70, 72, 80), BorderSizePixel = 0,
+    })
+    Corner(b, 4)
+    PingBars[i] = b
+end
+
+local secAcc = NewSection(P1, "My Access")
+do
+    local r = Row(secAcc, 80, true)
+    Text(r, "TRC SERVICE", 13, T.Text, F.Black, UDim2.fromOffset(14, 8), UDim2.fromOffset(150, 18))
+    local chip = New("Frame", { Parent = r, Position = UDim2.new(1, -44, 0, 9), Size = UDim2.fromOffset(28, 20), BackgroundColor3 = WHITE, BorderSizePixel = 0 })
+    Corner(chip, 5)
+    Gradient(chip, Color3.fromRGB(240, 243, 248), Color3.fromRGB(120, 124, 134), 45)
+    Text(r, "Whitelisted User", 10, T.Muted, F.Medium, UDim2.fromOffset(14, 28), UDim2.fromOffset(150, 14))
+    local nameLbl = Text(r, LocalPlayer.Name, 17, WHITE, F.Bold, UDim2.fromOffset(14, 42), UDim2.new(1, -100, 0, 24))
+    nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+    Pill(r, "ACTIVE", T.Green, UDim2.new(1, -78, 1, -26), UDim2.fromOffset(64, 18), 9)
+end
+AddButton(secAcc, { Name = "Discord", Desc = "Copy the invite link", Button = "Copy", Style = "light", Callback = CopyDiscord })
+
+local secAct = NewSection(P1, "Recent Activity")
+do
+    local dot = New("Frame", { Parent = secAct.Head, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(8, 8), BackgroundColor3 = T.Green, BorderSizePixel = 0 })
+    Corner(dot, 99)
+    Pulse(dot)
+end
+local LogRows = {}
+for i = 1, 3 do
+    local r = Row(secAct, 40, true)
+    r.Visible = false
+    local dotBox = New("Frame", { Parent = r, Position = UDim2.fromOffset(8, 6), Size = UDim2.fromOffset(28, 28), BackgroundColor3 = WHITE, BackgroundTransparency = 0.9, BorderSizePixel = 0 })
+    Corner(dotBox, 9)
+    local inner = New("Frame", { Parent = dotBox, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(8, 8), BackgroundColor3 = T.Chrome, BorderSizePixel = 0 })
+    Corner(inner, 99)
+    local title = Text(r, "", 12, T.Text, F.Bold, UDim2.fromOffset(46, 5), UDim2.new(1, -150, 0, 16))
+    title.TextTruncate = Enum.TextTruncate.AtEnd
+    local tm = Text(r, "", 10, T.Muted, F.Regular, UDim2.fromOffset(46, 21), UDim2.new(1, -150, 0, 14))
+    local tag = Text(r, "", 12, T.Green, F.Bold, UDim2.new(1, -96, 0, 0), UDim2.new(0, 84, 1, 0), AX.R)
+    LogRows[i] = { Row = r, Title = title, Time = tm, Tag = tag, Dot = inner }
+end
+RenderLog = function()
+    for i = 1, 3 do
+        local d, r = Logs[i], LogRows[i]
+        if d then
+            r.Row.Visible = true
+            r.Title.Text = d.title
+            r.Time.Text = d.time
+            r.Tag.Text = d.tag
+            r.Tag.TextColor3 = d.color
+            r.Dot.BackgroundColor3 = d.color
+            if i == 1 then
+                r.Row.BackgroundTransparency = 0
+                Tween(r.Row, 0.6, { BackgroundTransparency = 0.35 })
+                r.Dot.Size = UDim2.fromOffset(0, 0)
+                Tween(r.Dot, 0.7, { Size = UDim2.fromOffset(8, 8) }, ES.Elastic)
+            end
+        else
+            r.Row.Visible = false
+        end
+    end
+end
+Log("UI loaded", CONFIG.Version, T.Chrome)
+Log("Whitelist verified", "OK", T.Green)
+
+local secCom = NewSection(P1, "Community")
+do
+    local b = AddBanner(secCom, 112, "Banner1")
+    local t = Text(b, 'Trusted by <font color="#D5DAE4">Thousands</font>\nJoin Us Today!', 18, WHITE, F.Bold, UDim2.fromOffset(18, 12), UDim2.new(0.6, 0, 0, 48))
+    t.RichText = true
+    t.TextYAlignment = Enum.TextYAlignment.Top
+    t.TextWrapped = true
+    local s = Text(b, "Secure, reliable and trusted by customers worldwide", 10, Color3.fromRGB(190, 195, 205), F.Regular, UDim2.fromOffset(18, 58), UDim2.new(0.55, 0, 0, 14))
+    s.TextWrapped = true
+    Button(b, "Join Discord", UDim2.fromOffset(18, 76), UDim2.fromOffset(140, 30), "light", CopyDiscord)
+end
+
+local P2 = NewPage("Credit")
+
+IconBuilders.gem = function(h, tn)
+    local d = New("Frame", {
+        Parent = h, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(12, 12),
+        Size = UDim2.fromOffset(12, 12), Rotation = 45, BackgroundTransparency = 1, BorderSizePixel = 0,
+    })
+    Corner(d, 2)
+    table.insert(tn, { Stroke(d, WHITE, 2, 0), "Color" })
+end
+
+IconBuilders.chat = function(h, tn)
+    local b = New("Frame", {
+        Parent = h, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(12, 10.5),
+        Size = UDim2.fromOffset(19, 14), BackgroundTransparency = 1, BorderSizePixel = 0,
+    })
+    Corner(b, 5)
+    table.insert(tn, { Stroke(b, WHITE, 2, 0), "Color" })
+    IconBar(h, 8.5, 19.5, 5, 2.2, 45, tn)
+    for _, x in ipairs({ 8, 12, 16 }) do
+        IconBar(h, x, 10.5, 2.4, 2.4, 0, tn)
+    end
+end
+
+IconBuilders.doc = function(h, tn)
+    local b = New("Frame", {
+        Parent = h, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(12, 12),
+        Size = UDim2.fromOffset(14, 18), BackgroundTransparency = 1, BorderSizePixel = 0,
+    })
+    Corner(b, 3)
+    table.insert(tn, { Stroke(b, WHITE, 2, 0), "Color" })
+    IconBar(h, 12, 10.5, 6, 2, 0, tn)
+    IconBar(h, 12, 14.5, 6, 2, 0, tn)
+end
+
+IconBuilders.heart = function(h, tn)
+    local function shape(x, y, s, rot, round)
+        local f = New("Frame", {
+            Parent = h, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(x, y),
+            Size = UDim2.fromOffset(s, s), Rotation = rot, BackgroundColor3 = WHITE, BorderSizePixel = 0,
+        })
+        if round then Corner(f, 99) else Corner(f, 1) end
+        table.insert(tn, { f, "BackgroundColor3" })
+    end
+    shape(12, 13, 10, 45, false)
+    shape(8.5, 9.5, 10, 0, true)
+    shape(15.5, 9.5, 10, 0, true)
+end
+
+local function BuildCredits()
+    local ORANGE = { Accent = Color3.fromRGB(255, 138, 52), Light = Color3.fromRGB(255, 214, 178), Base = Color3.fromRGB(17, 10, 7),  Tile = Color3.fromRGB(46, 24, 12) }
+    local BLUE   = { Accent = Color3.fromRGB(88, 150, 255), Light = Color3.fromRGB(196, 222, 255), Base = Color3.fromRGB(7, 11, 20), Tile = Color3.fromRGB(14, 26, 52) }
+    local GREEN  = { Accent = Color3.fromRGB(60, 220, 120), Light = Color3.fromRGB(190, 255, 214), Base = Color3.fromRGB(7, 16, 11), Tile = Color3.fromRGB(12, 44, 26) }
+    local PILL_OFF, PILL_ON = Color3.fromRGB(24, 24, 27), Color3.fromRGB(70, 72, 78)
+
+    local selectTab, reveal
+    local current = 1
+
+    local function copyLink(url)
+        local ok = copyToClipboard(url)
+        if ok then
+            Toast("Link copied  |  paste it in your browser", T.Green)
+        else
+            Toast("Clipboard not supported: " .. url, T.Red)
+        end
+        return ok
+    end
+
+    local function bare(sec)
+        sec.Head.Visible = false
+        sec.Frame.BackgroundTransparency = 1
+        local st = sec.Frame:FindFirstChildOfClass("UIStroke")
+        if st then st.Enabled = false end
+        local pad = sec.Frame:FindFirstChildOfClass("UIPadding")
+        if pad then
+            pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 4), UDim.new(0, 4)
+            pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 4), UDim.new(0, 4)
+        end
+    end
+
+    local function setIcon(box, kind, px, color)
+        for _, c in ipairs(box:GetChildren()) do
+            if c.Name == "Ic" then c:Destroy() end
+        end
+        local ic = MakeIcon(kind, box, UDim2.fromScale(0.5, 0.5), px, color)
+        ic.Frame.Name = "Ic"
+        return ic
+    end
+
+    local function GlowCard(parent, order, th, o)
+        local card = New("CanvasGroup", {
+            Parent = parent, LayoutOrder = order, Size = UDim2.new(1 / 3, -7, 1, 0),
+            BackgroundColor3 = th.Base, BorderSizePixel = 0,
+        })
+        Corner(card, 18)
+        local sc = New("UIScale", { Parent = card })
+
+        local glow = New("Frame", {
+            Parent = card, Position = UDim2.fromScale(0, 0.4), Size = UDim2.fromScale(1, 0.6),
+            BackgroundColor3 = th.Accent, BorderSizePixel = 0,
+        })
+        New("UIGradient", {
+            Parent = glow, Rotation = 90,
+            Transparency = NumberSequence.new({ nk(0, 1), nk(0.55, 0.86), nk(0.82, 0.5), nk(1, 0.08) }),
+        })
+
+        local rim = New("Frame", {
+            Parent = card, AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 18),
+            BackgroundColor3 = th.Light, BorderSizePixel = 0,
+        })
+        New("UIGradient", { Parent = rim, Rotation = 90, Transparency = NumberSequence.new({ nk(0, 1), nk(1, 0.12) }) })
+
+        local gloss = New("Frame", { Parent = card, Size = UDim2.new(1, 0, 0, 64), BackgroundColor3 = WHITE, BorderSizePixel = 0 })
+        New("UIGradient", { Parent = gloss, Rotation = 90, Transparency = NumberSequence.new({ nk(0, 0.94), nk(1, 1) }) })
+
+        local edge = Stroke(card, th.Accent, 1.5, 0)
+        New("UIGradient", { Parent = edge, Rotation = 90, Transparency = NumberSequence.new({ nk(0, 0.9), nk(0.5, 0.78), nk(1, 0.1) }) })
+
+        local tile = New("Frame", {
+            Parent = card, Position = UDim2.fromOffset(14, 14), Size = UDim2.fromOffset(34, 34),
+            BackgroundColor3 = th.Tile, BorderSizePixel = 0,
+        })
+        Corner(tile, 11)
+        Stroke(tile, th.Accent, 1, 0.65)
+        MakeIcon(o.Icon, tile, UDim2.fromScale(0.5, 0.5), 18, th.Light)
+
+        Text(card, o.Title, 15, T.Text, F.Bold, UDim2.fromOffset(14, 58), UDim2.new(1, -28, 0, 20))
+        local d = Text(card, o.Desc, 10, Color3.fromRGB(176, 178, 186), F.Regular, UDim2.fromOffset(14, 80), UDim2.new(1, -28, 0, 38))
+        d.TextWrapped = true
+        d.TextYAlignment = Enum.TextYAlignment.Top
+
+        Text(card, o.Cta, 11, T.Text, F.Bold, UDim2.fromOffset(14, 124), UDim2.fromOffset(140, 16))
+        local w = 70
+        pcall(function() w = TextService:GetTextSize(o.Cta, 11, F.Bold, Vector2.new(300, 20)).X end)
+        local abox = New("Frame", { Parent = card, Position = UDim2.fromOffset(14 + w + 2, 122), Size = UDim2.fromOffset(20, 20), BackgroundTransparency = 1 })
+        MakeIcon("chevron", abox, UDim2.fromScale(0.5, 0.5), 11, T.Text)
+
+        local hit = New("TextButton", { Parent = card, Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "", ZIndex = 5 })
+        hit.MouseEnter:Connect(function() Tween(sc, 0.3, { Scale = 1.03 }) end)
+        hit.MouseLeave:Connect(function() Tween(sc, 0.3, { Scale = 1 }) end)
+        Tap(hit, function()
+            selectTab(o.Tab)
+            reveal()
+        end)
+    end
+
+    local secCards = NewSection(P2, "Highlights")
+    bare(secCards)
+    local cardRow = New("Frame", {
+        Parent = secCards.Frame, LayoutOrder = nextOrder(secCards), Size = UDim2.new(1, 0, 0, 156), BackgroundTransparency = 1,
+    })
+    New("UIListLayout", { Parent = cardRow, FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder })
+    GlowCard(cardRow, 1, ORANGE, { Icon = "user",  Title = "Meet the Team", Desc = CONFIG.Developer .. " and " .. CONFIG.Founder .. ", the people behind " .. CONFIG.Name .. ".", Cta = "View Team", Tab = 1 })
+    GlowCard(cardRow, 2, BLUE,   { Icon = "chat",  Title = "Social Links",  Desc = "Copy our profile links and paste them in your browser.", Cta = "Get Links", Tab = 3 })
+    GlowCard(cardRow, 3, GREEN,  { Icon = "heart", Title = "Support Us",    Desc = "Support the owner and developer with a PayPal donation.", Cta = "Donate Now", Tab = 4 })
+
+    local TABS = {
+        {
+            Name = "Developer", Theme = ORANGE, Icon = "code",
+            Title = CONFIG.Developer, Sub = "Developer  |  " .. CONFIG.Name,
+            A = { Big = "Developer", Cap = "Role", Icon = "code" },
+            B = { Big = "Notgunslol", Cap = "Profile", Icon = "chat" },
+            Side = { Cap = "Build", Val = CONFIG.Version },
+            Desc = {
+                { "Description:", CONFIG.Developer .. " is the developer of " .. CONFIG.Name .. "." },
+                { "Profile Link:", CONFIG.DevLink },
+            },
+            Actions = { { "Copy Profile Link", CONFIG.DevLink } },
+        },
+        {
+            Name = "Founder", Theme = ORANGE, Icon = "gem",
+            Title = CONFIG.Founder, Sub = "Founder  |  " .. CONFIG.Name,
+            A = { Big = "Founder", Cap = "Role", Icon = "gem" },
+            B = { Big = "Gunslol", Cap = "Profile", Icon = "chat" },
+            Side = { Cap = "Build", Val = CONFIG.Version },
+            Desc = {
+                { "Description:", CONFIG.Founder .. " is the founder of " .. CONFIG.Name .. "." },
+                { "Profile Link:", CONFIG.FounderLink },
+            },
+            Actions = { { "Copy Profile Link", CONFIG.FounderLink } },
+        },
+        {
+            Name = "Social", Theme = BLUE, Icon = "chat",
+            Title = "Social Links", Sub = "2 profiles  |  paste them in a browser",
+            A = { Big = "Notgunslol", Cap = CONFIG.Developer, Icon = "chat" },
+            B = { Big = "Gunslol", Cap = CONFIG.Founder, Icon = "chat" },
+            Side = { Cap = "Links", Val = "2" },
+            Desc = {
+                { "Notgunslol:", CONFIG.DevLink },
+                { "Gunslol:", CONFIG.FounderLink },
+            },
+            Actions = {
+                { "Copy Notgunslol Link", CONFIG.DevLink },
+                { "Copy Gunslol Link", CONFIG.FounderLink },
+            },
+        },
+        {
+            Name = "Donate", Theme = GREEN, Icon = "heart",
+            Title = "Support The Owner/Dev", Sub = "PayPal  |  thank you for the support",
+            A = { Big = "PayPal", Cap = "Method", Icon = "heart" },
+            B = { Big = "$5.00", Cap = "Amount", Icon = "gem" },
+            Side = { Cap = "To", Val = "redskycatlol" },
+            Desc = {
+                { "Description:", "Support the owner and developer of " .. CONFIG.Name .. " with a PayPal donation." },
+                { "PayPal Link:", CONFIG.DonateLink },
+            },
+            Actions = { { "Copy PayPal Link", CONFIG.DonateLink } },
+        },
+    }
+
+    local secPanel = NewSection(P2, "Details")
+    bare(secPanel)
+    local panel = New("Frame", {
+        Parent = secPanel.Frame, LayoutOrder = nextOrder(secPanel), Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = WHITE, BorderSizePixel = 0,
+    })
+    Corner(panel, 20)
+    New("UIGradient", { Parent = panel, Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(24, 24, 27), Color3.fromRGB(8, 8, 10)) })
+    New("UIPadding", { Parent = panel, PaddingTop = UDim.new(0, 14), PaddingBottom = UDim.new(0, 14), PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 14) })
+    New("UIListLayout", { Parent = panel, Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder })
+    local pStroke = Stroke(panel, WHITE, 1.5, 0)
+    Spin(New("UIGradient", {
+        Parent = pStroke, Color = CHROME,
+        Transparency = NumberSequence.new({ nk(0, 0.15), nk(0.5, 0.85), nk(1, 0.15) }),
+    }), 40)
+
+    local header = New("Frame", { Parent = panel, LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1 })
+    local topGlow = New("Frame", {
+        Parent = header, Position = UDim2.fromOffset(-14, -14), Size = UDim2.new(1, 28, 0, 120),
+        BackgroundColor3 = ORANGE.Accent, BorderSizePixel = 0,
+    })
+    Corner(topGlow, 20)
+    New("UIGradient", { Parent = topGlow, Rotation = 90, Transparency = NumberSequence.new({ nk(0, 0.8), nk(1, 1) }) })
+    Logo(header, 26, UDim2.fromOffset(0, 4))
+    Text(header, "Credits", 14, T.Text, F.Medium, UDim2.fromOffset(38, 0), UDim2.fromOffset(160, 34))
+    Pill(header, CONFIG.Version, T.Chrome, UDim2.new(1, -64, 0.5, -10), UDim2.fromOffset(64, 20), 10)
+
+    local info = New("Frame", {
+        Parent = panel, LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 108),
+        BackgroundColor3 = Color3.fromRGB(22, 22, 25), BorderSizePixel = 0,
+    })
+    Corner(info, 14)
+    Stroke(info, T.Stroke, 1, 0.55)
+    local iTile = New("Frame", { Parent = info, Position = UDim2.fromOffset(14, 12), Size = UDim2.fromOffset(30, 30), BackgroundColor3 = ORANGE.Tile, BorderSizePixel = 0 })
+    Corner(iTile, 10)
+    local iStroke = Stroke(iTile, ORANGE.Accent, 1, 0.6)
+    local iLine1 = Text(info, "", 12, ORANGE.Accent, F.Bold, UDim2.fromOffset(54, 10), UDim2.new(1, -120, 0, 16))
+    iLine1.TextTruncate = Enum.TextTruncate.AtEnd
+    local iLine2 = Text(info, "", 10, T.Muted, F.Regular, UDim2.fromOffset(54, 27), UDim2.new(1, -120, 0, 14))
+    iLine2.TextTruncate = Enum.TextTruncate.AtEnd
+    IconButton(info, "doc", UDim2.new(1, -46, 0, 10), UDim2.fromOffset(32, 32), function()
+        copyLink(TABS[current].Actions[1][2])
+    end)
+    New("Frame", {
+        Parent = info, Position = UDim2.fromOffset(14, 52), Size = UDim2.new(1, -28, 0, 1),
+        BackgroundColor3 = T.Stroke, BackgroundTransparency = 0.55, BorderSizePixel = 0,
+    })
+
+    local function Stat(xs, xo)
+        local box = New("Frame", {
+            Parent = info, Position = UDim2.new(xs, xo, 0, 62), Size = UDim2.fromOffset(34, 34),
+            BackgroundColor3 = Color3.fromRGB(34, 35, 39), BorderSizePixel = 0,
+        })
+        Corner(box, 10)
+        local big = Text(info, "", 15, T.Text, F.Bold, UDim2.new(xs, xo + 44, 0, 60), UDim2.fromOffset(130, 20))
+        big.TextTruncate = Enum.TextTruncate.AtEnd
+        local cap = Text(info, "", 10, T.Muted, F.Regular, UDim2.new(xs, xo + 44, 0, 80), UDim2.fromOffset(130, 14))
+        cap.TextTruncate = Enum.TextTruncate.AtEnd
+        return { Box = box, Big = big, Cap = cap }
+    end
+    local sA, sB = Stat(0, 14), Stat(0.42, 0)
+    local sideCap = Text(info, "", 10, T.Muted, F.Regular, UDim2.new(1, -104, 0, 60), UDim2.fromOffset(90, 14), AX.R)
+    local sideVal = Text(info, "", 12, Color3.fromRGB(176, 178, 186), F.Bold, UDim2.new(1, -104, 0, 76), UDim2.fromOffset(90, 16), AX.R)
+    sideVal.TextTruncate = Enum.TextTruncate.AtEnd
+
+    local ttl = Text(panel, 'Credit <font color="rgb(138,142,152)">Details</font>', 14, T.Text, F.Medium, UDim2.new(), UDim2.new(1, 0, 0, 24), AX.C)
+    ttl.RichText = true
+    ttl.LayoutOrder = 3
+
+    local tabsRow = New("Frame", { Parent = panel, LayoutOrder = 4, Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1 })
+    New("UIListLayout", { Parent = tabsRow, FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
+    local pills = {}
+    for i, tab in ipairs(TABS) do
+        local b = New("TextButton", {
+            Parent = tabsRow, LayoutOrder = i, Size = UDim2.new(0.25, -6, 1, 0), BackgroundColor3 = PILL_OFF,
+            AutoButtonColor = false, Text = tab.Name, TextColor3 = T.Muted, Font = F.Medium, TextSize = 12, BorderSizePixel = 0,
+        })
+        Corner(b, 12)
+        local st = Stroke(b, tab.Theme.Accent, 1, 1)
+        Tap(b, function() selectTab(i) end)
+        pills[i] = { Btn = b, Stroke = st }
+    end
+
+    local desc = New("Frame", { Parent = panel, LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 })
+    New("UIListLayout", { Parent = desc, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
+    local acts = New("Frame", { Parent = panel, LayoutOrder = 6, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 })
+    New("UIListLayout", { Parent = acts, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
+
+    local function clear(frame)
+        for _, c in ipairs(frame:GetChildren()) do
+            if c:IsA("GuiObject") then c:Destroy() end
+        end
+    end
+
+    selectTab = function(i)
+        current = i
+        local tab = TABS[i]
+        local th = tab.Theme
+
+        for k, p in ipairs(pills) do
+            local on = (k == i)
+            Tween(p.Btn, 0.25, { BackgroundColor3 = on and PILL_ON or PILL_OFF })
+            p.Btn.TextColor3 = on and T.Text or T.Muted
+            p.Btn.Font = on and F.Bold or F.Medium
+            Tween(p.Stroke, 0.25, { Transparency = on and 0.4 or 1 })
+        end
+
+        Tween(topGlow, 0.35, { BackgroundColor3 = th.Accent })
+        Tween(iTile, 0.3, { BackgroundColor3 = th.Tile })
+        Tween(iStroke, 0.3, { Color = th.Accent })
+        setIcon(iTile, tab.Icon, 16, th.Light)
+        iLine1.Text = tab.Title
+        Tween(iLine1, 0.3, { TextColor3 = th.Accent })
+        iLine2.Text = tab.Sub
+
+        sA.Big.Text, sA.Cap.Text = tab.A.Big, tab.A.Cap
+        sB.Big.Text, sB.Cap.Text = tab.B.Big, tab.B.Cap
+        setIcon(sA.Box, tab.A.Icon, 16, th.Light)
+        setIcon(sB.Box, tab.B.Icon, 16, th.Light)
+        sideCap.Text, sideVal.Text = tab.Side.Cap, tab.Side.Val
+
+        clear(desc)
+        for n, d in ipairs(tab.Desc) do
+            local item = New("Frame", { Parent = desc, LayoutOrder = n, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 })
+            local dot = New("Frame", { Parent = item, Position = UDim2.fromOffset(4, 6), Size = UDim2.fromOffset(4, 4), BackgroundColor3 = th.Accent, BorderSizePixel = 0 })
+            Corner(dot, 99)
+            New("TextLabel", {
+                Parent = item, Position = UDim2.fromOffset(18, 0), Size = UDim2.new(1, -18, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1, RichText = true, TextWrapped = true, Font = F.Medium, TextSize = 11,
+                TextColor3 = T.Text, TextXAlignment = AX.L, TextYAlignment = Enum.TextYAlignment.Top,
+                Text = string.format('<b>%s</b>\n<font color="rgb(138,142,152)">%s</font>', d[1], d[2]),
+            })
+        end
+
+        clear(acts)
+        for n, a in ipairs(tab.Actions) do
+            local bar = New("TextButton", {
+                Parent = acts, LayoutOrder = n, Size = UDim2.new(1, 0, 0, 40), BackgroundColor3 = Color3.fromRGB(28, 28, 31),
+                AutoButtonColor = false, Text = "", BorderSizePixel = 0,
+            })
+            Corner(bar, 20)
+            Stroke(bar, T.Stroke, 1, 0.6)
+            local lb = New("Frame", { Parent = bar, Position = UDim2.fromOffset(12, 8), Size = UDim2.fromOffset(24, 24), BackgroundTransparency = 1 })
+            MakeIcon("doc", lb, UDim2.fromScale(0.5, 0.5), 15, th.Light)
+            local label = Text(bar, a[1], 12, T.Text, F.Bold, UDim2.fromOffset(46, 0), UDim2.new(1, -90, 1, 0))
+            local rb = New("Frame", { Parent = bar, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(20, 20), BackgroundTransparency = 1 })
+            MakeIcon("chevron", rb, UDim2.fromScale(0.5, 0.5), 14, T.Muted)
+            bar.MouseEnter:Connect(function() Tween(bar, 0.15, { BackgroundColor3 = Color3.fromRGB(38, 38, 42) }) end)
+            bar.MouseLeave:Connect(function() Tween(bar, 0.2, { BackgroundColor3 = Color3.fromRGB(28, 28, 31) }) end)
+            Tap(bar, function()
+                local ok = copyLink(a[2])
+                label.Text = ok and "Link copied" or "Copy failed"
+                task.delay(1.2, function()
+                    if label.Parent then label.Text = a[1] end
+                end)
+            end)
+        end
+    end
+
+    reveal = function()
+        local sc = P2.Scroller
+        local k = math.max(sc.AbsoluteSize.Y, 1) / (WIN_H - TOP_H)
+        local y = (secPanel.Frame.AbsolutePosition.Y - sc.AbsolutePosition.Y) / k + sc.CanvasPosition.Y - 6
+        Tween(sc, 0.5, { CanvasPosition = Vector2.new(0, math.max(0, y)) }, ES.Quint)
+    end
+
+    selectTab(1)
+end
+
+BuildCredits()
+
+local secAbout = NewSection(P2, "About")
+do
+    local b = AddBanner(secAbout, 112, "Banner2")
+    Logo(b, 60, UDim2.fromOffset(20, 26))
+    Text(b, CONFIG.Name, 26, WHITE, F.Black, UDim2.fromOffset(96, 20), UDim2.fromOffset(300, 32))
+    Text(b, "Thank you for using our script!", 13, Color3.fromRGB(190, 195, 205), F.Medium, UDim2.fromOffset(96, 54), UDim2.fromOffset(300, 18))
+    Pill(b, CONFIG.Version, WHITE, UDim2.fromOffset(96, 80), UDim2.fromOffset(64, 22), 11)
+end
+
+local secLinks = NewSection(P2, "Links")
+AddButton(secLinks, { Name = "Join Discord", Desc = "Copy the invite link", Button = "Copy", Style = "light", Callback = CopyDiscord })
+AddButton(secLinks, { Name = "Unload UI", Desc = "Remove the interface and shaders", Button = "Unload", Style = "ghost", Callback = function() Unload() end })
+
+local RTX = {
+    On  = false,
+    Opt = { Bloom = true, Rays = true, Grade = true, DOF = false, Future = true },
+    Val = { Bloom = 0.8, Sat = 0.25, Con = 0.15 },
+}
+local LIGHT_KEYS = { "Brightness", "ExposureCompensation", "EnvironmentDiffuseScale", "EnvironmentSpecularScale", "GlobalShadows", "ShadowSoftness" }
+local savedLight, savedTech
+
+local function getTech()
+    local ok, v = pcall(function()
+        if gethiddenproperty then return (gethiddenproperty(Lighting, "Technology")) end
+        return Lighting.Technology
+    end)
+    if ok then return v end
+    return nil
+end
+local function setTech(tech)
+    pcall(function()
+        if sethiddenproperty then sethiddenproperty(Lighting, "Technology", tech) else Lighting.Technology = tech end
+    end)
+end
+
+local function getFx(class, name, start)
+    local e = Lighting:FindFirstChild(name)
+    if e then return e end
+    e = Instance.new(class)
+    e.Name = name
+    for k, v in pairs(start) do e[k] = v end
+    e.Parent = Lighting
+    return e
+end
+
+local function dropFx(name)
+    local e = Lighting:FindFirstChild(name)
+    if not e then return end
+    e.Name = name .. "_x"
+    local goal
+    if e:IsA("BloomEffect") or e:IsA("SunRaysEffect") then
+        goal = { Intensity = 0 }
+    elseif e:IsA("ColorCorrectionEffect") then
+        goal = { Saturation = 0, Contrast = 0, Brightness = 0 }
+    elseif e:IsA("DepthOfFieldEffect") then
+        goal = { FarIntensity = 0 }
+    end
+    if goal then Tween(e, 0.5, goal) end
+    task.delay(0.6, function() if e.Parent then e:Destroy() end end)
+end
+
+local function applyRTX()
+    if not RTX.On then
+        for _, n in ipairs({ "TRC_Bloom", "TRC_Rays", "TRC_Grade", "TRC_DOF", "TRC_Atmos" }) do dropFx(n) end
+        if savedLight then
+            for k, v in pairs(savedLight) do pcall(function() Lighting[k] = v end) end
+            savedLight = nil
+        end
+        if savedTech then setTech(savedTech) savedTech = nil end
+        return
+    end
+
+    if not savedLight then
+        savedLight = {}
+        for _, k in ipairs(LIGHT_KEYS) do
+            local ok, v = pcall(function() return Lighting[k] end)
+            if ok then savedLight[k] = v end
+        end
+    end
+    pcall(function()
+        Lighting.GlobalShadows = true
+        Lighting.EnvironmentDiffuseScale = 1
+        Lighting.EnvironmentSpecularScale = 1
+        Lighting.ExposureCompensation = 0.2
+    end)
+
+    if RTX.Opt.Bloom then
+        local e = getFx("BloomEffect", "TRC_Bloom", { Intensity = 0, Size = 28, Threshold = 0.85 })
+        Tween(e, 0.6, { Intensity = RTX.Val.Bloom })
+    else dropFx("TRC_Bloom") end
+
+    if RTX.Opt.Rays then
+        local e = getFx("SunRaysEffect", "TRC_Rays", { Intensity = 0, Spread = 0.85 })
+        Tween(e, 0.6, { Intensity = 0.2 })
+    else dropFx("TRC_Rays") end
+
+    if RTX.Opt.Grade then
+        local e = getFx("ColorCorrectionEffect", "TRC_Grade", { Saturation = 0, Contrast = 0, Brightness = 0, TintColor = Color3.fromRGB(255, 244, 232) })
+        Tween(e, 0.6, { Saturation = RTX.Val.Sat, Contrast = RTX.Val.Con, Brightness = 0.02 })
+    else dropFx("TRC_Grade") end
+
+    if RTX.Opt.DOF then
+        local e = getFx("DepthOfFieldEffect", "TRC_DOF", { FarIntensity = 0, NearIntensity = 0, FocusDistance = 60, InFocusRadius = 45 })
+        Tween(e, 0.6, { FarIntensity = 0.25 })
+    else dropFx("TRC_DOF") end
+
+    if RTX.Opt.Future then
+        if not savedTech then savedTech = getTech() end
+        if getTech() ~= Enum.Technology.Future then setTech(Enum.Technology.Future) end
+        if not Lighting:FindFirstChildOfClass("Atmosphere") then
+            getFx("Atmosphere", "TRC_Atmos", { Density = 0.3, Offset = 0.25, Color = Color3.fromRGB(199, 180, 165), Decay = Color3.fromRGB(120, 100, 90), Glare = 0.2, Haze = 1.2 })
+        end
+    else
+        if savedTech then setTech(savedTech) savedTech = nil end
+        dropFx("TRC_Atmos")
+    end
+end
+
+local function liveRTX()
+    if not RTX.On then return end
+    local b = Lighting:FindFirstChild("TRC_Bloom")
+    if b then b.Intensity = RTX.Val.Bloom end
+    local g = Lighting:FindFirstChild("TRC_Grade")
+    if g then g.Saturation = RTX.Val.Sat g.Contrast = RTX.Val.Con end
+end
+
+local Overlay = New("CanvasGroup", {
+    Name = "FpsOverlay", Parent = Gui, Position = UDim2.new(1, -112, 0, 14), Size = UDim2.fromOffset(98, 32),
+    BackgroundColor3 = Color3.fromRGB(10, 10, 12), GroupTransparency = 1, Visible = false, Active = true,
+})
+Corner(Overlay, 16)
+local OverlayStroke = Stroke(Overlay, T.Chrome, 1, 0.5)
+local OverlayText = Text(Overlay, "FPS 0", 13, T.Text, F.Bold, UDim2.new(), UDim2.fromScale(1, 1), AX.C)
+OverlayText.RichText = true
+MakeDraggable(Overlay, Overlay, {
+    Keep = 98,
+    OnStart = function() Tween(OverlayStroke, 0.2, { Transparency = 0, Thickness = 1.8 }) end,
+    OnEnd   = function() Tween(OverlayStroke, 0.4, { Transparency = 0.5, Thickness = 1 }, ES.Back) end,
+})
+
+local P3 = NewPage("Perf")
+
+local secFps = NewSection(P3, "FPS Counter")
+
+local fpsRow = Row(secFps, 72, true)
+Text(fpsRow, "Current", 11, T.Muted, F.Medium, UDim2.fromOffset(14, 8), UDim2.fromOffset(120, 14))
+local FpsBig = Text(fpsRow, "", 34, T.Text, F.Bold, UDim2.fromOffset(14, 22), UDim2.fromOffset(240, 44))
+FpsBig.RichText = true
+FpsBig.Text = '0 <font size="16" color="rgb(138,142,152)">FPS</font>'
+local FpsStatePill, FpsStateLbl = Pill(fpsRow, "Measuring", T.Chrome, UDim2.new(1, -112, 0.5, -12), UDim2.fromOffset(98, 24), 11)
+
+local chipsRow = Row(secFps, 50, true)
+local function Chip(i, label)
+    local x = (i - 1) / 4
+    Text(chipsRow, label, 10, T.Muted, F.Medium, UDim2.new(x, 14, 0, 7), UDim2.new(0.25, -14, 0, 12))
+    return Text(chipsRow, "--", 15, T.Text, F.Bold, UDim2.new(x, 14, 0, 22), UDim2.new(0.25, -14, 0, 20))
+end
+local ChipAvg  = Chip(1, "AVG")
+local ChipMin  = Chip(2, "MIN")
+local ChipMax  = Chip(3, "MAX")
+local ChipPing = Chip(4, "PING")
+
+local graphRow = Row(secFps, 156, true)
+local Graph = New("Frame", { Parent = graphRow, Position = UDim2.fromOffset(14, 14), Size = UDim2.new(1, -28, 1, -40), BackgroundTransparency = 1 })
+local Line60 = New("Frame", { Parent = Graph, Size = UDim2.new(1, 0, 0, 1), Position = UDim2.fromScale(0, 0.5), BackgroundColor3 = T.Stroke, BackgroundTransparency = 0.35, BorderSizePixel = 0 })
+Text(Line60, "60", 9, T.Muted, F.Medium, UDim2.fromOffset(0, -12), UDim2.fromOffset(30, 12))
+local FpsBars = {}
+for i = 1, 30 do
+    local b = New("Frame", {
+        Parent = Graph, AnchorPoint = Vector2.new(0, 1), Position = UDim2.new((i - 1) / 30, 0, 1, 0),
+        Size = UDim2.new(0.026, 0, 0, 0), BackgroundColor3 = Color3.fromRGB(150, 154, 164), BorderSizePixel = 0, Visible = false,
+    })
+    Corner(b, 3)
+    Gradient(b, WHITE, Color3.fromRGB(120, 120, 126), 90)
+    FpsBars[i] = b
+end
+Text(graphRow, "15s ago", 10, T.Muted, F.Regular, UDim2.new(0, 14, 1, -20), UDim2.fromOffset(100, 12))
+Text(graphRow, "now", 10, T.Muted, F.Regular, UDim2.new(1, -114, 1, -20), UDim2.fromOffset(100, 12), AX.R)
+
+local secOv = NewSection(P3, "FPS Overlay")
+AddToggle(secOv, {
+    Name = "Floating counter", Desc = "Drag it anywhere on the screen", Default = false,
+    Callback = function(v)
+        if v then
+            Overlay.Visible = true
+            Tween(Overlay, 0.4, { GroupTransparency = 0 }, ES.Quad)
+        else
+            Tween(Overlay, 0.3, { GroupTransparency = 1 }, ES.Quad)
+            task.delay(0.32, function() if Overlay.GroupTransparency >= 0.99 then Overlay.Visible = false end end)
+        end
+    end,
+})
+
+local FpsHist = {}
+local function pushFps(fps)
+    table.insert(FpsHist, fps)
+    if #FpsHist > 30 then table.remove(FpsHist, 1) end
+    local sum, mn, mx = 0, math.huge, 0
+    for _, v in ipairs(FpsHist) do
+        sum = sum + v
+        mn = math.min(mn, v)
+        mx = math.max(mx, v)
+    end
+    local avg = math.floor(sum / #FpsHist + 0.5)
+
+    local col, state = T.Green, "Smooth"
+    if fps < 30 then col, state = T.Red, "Laggy" elseif fps < 50 then col, state = T.Chrome, "Moderate" end
+
+    FpsBig.Text = string.format('%d <font size="16" color="rgb(138,142,152)">FPS</font>', fps)
+    Tween(FpsBig, 0.3, { TextColor3 = col })
+    Tween(FpsStatePill, 0.3, { BackgroundColor3 = col })
+    FpsStateLbl.TextColor3 = col
+    FpsStateLbl.Text = state
+    ChipAvg.Text, ChipMin.Text, ChipMax.Text = tostring(avg), tostring(mn), tostring(mx)
+    OverlayText.Text = string.format('FPS <font color="%s">%d</font>', rgbStr(col), fps)
+
+    local scale = math.max(60, mx) * 1.15
+    Tween(Line60, 0.4, { Position = UDim2.fromScale(0, 1 - 60 / scale) })
+    local offset = 30 - #FpsHist
+    for i = 1, 30 do
+        local v = FpsHist[i - offset]
+        local bar = FpsBars[i]
+        if v then
+            bar.Visible = true
+            Tween(bar, 0.45, {
+                Size = UDim2.new(0.026, 0, math.clamp(v / scale, 0.02, 1), 0),
+                BackgroundColor3 = (i == 30) and T.ChromeLt or Color3.fromRGB(150, 154, 164),
+            })
+        end
+    end
+end
+
+local secRtx = NewSection(P3, "RTX Shader")
+local secFx  = NewSection(P3, "Effects")
+local secAdj = NewSection(P3, "Adjustments")
+secFx.Rest, secAdj.Rest = 0.55, 0.55
+
+AddToggle(secRtx, {
+    Name = "Enable RTX Shader", Desc = "Cinematic lighting enhancement", Default = false,
+    Callback = function(v)
+        RTX.On = v
+        local rest = v and 0 or 0.55
+        secFx.Rest, secAdj.Rest = rest, rest
+        SecTween(secFx, 0.4, rest)
+        SecTween(secAdj, 0.4, rest)
+        applyRTX()
+        Toast(v and "RTX Shader enabled" or "RTX Shader disabled", v and T.Green or T.Chrome)
+        Log("RTX Shader", v and "ON" or "OFF", v and T.Green or T.Chrome)
+    end,
+})
+
+local RTX_ROWS = {
+    { "Bloom",  "Bloom",           "Soft glow on bright lights" },
+    { "Rays",   "Sun Rays",        "Volumetric light shafts" },
+    { "Grade",  "Color Grading",   "Cinematic tone and contrast" },
+    { "DOF",    "Depth of Field",  "Blurs the far background" },
+    { "Future", "Future Lighting", "Atmosphere and sharper shadows" },
+}
+for _, r in ipairs(RTX_ROWS) do
+    AddToggle(secFx, {
+        Name = r[2], Desc = r[3], Default = RTX.Opt[r[1]],
+        Callback = function(v)
+            RTX.Opt[r[1]] = v
+            applyRTX()
+        end,
+    })
+end
+
+AddSlider(secAdj, { Name = "Bloom Intensity", Min = 0, Max = 2, Default = RTX.Val.Bloom, Format = "%.2f",
+    Callback = function(v)
+        RTX.Val.Bloom = v
+        liveRTX()
+    end })
+AddSlider(secAdj, { Name = "Saturation", Min = -0.5, Max = 1, Default = RTX.Val.Sat, Format = "%.2f",
+    Callback = function(v)
+        RTX.Val.Sat = v
+        liveRTX()
+    end })
+AddSlider(secAdj, { Name = "Contrast", Min = 0, Max = 0.5, Default = RTX.Val.Con, Format = "%.2f",
+    Callback = function(v)
+        RTX.Val.Con = v
+        liveRTX()
+    end })
+
+local Sidebar = New("Frame", {
+    Parent = Window, Size = UDim2.fromOffset(SB_W, WIN_H), BackgroundColor3 = Color3.fromRGB(10, 10, 12),
+    BackgroundTransparency = 0.08, BorderSizePixel = 0, ZIndex = 5,
+})
+New("Frame", { Parent = Sidebar, Position = UDim2.new(1, -1, 0, 0), Size = UDim2.new(0, 1, 1, 0), BackgroundColor3 = T.Stroke, BackgroundTransparency = 0.4, BorderSizePixel = 0 })
+Logo(Sidebar, 34, UDim2.fromOffset(14, 12))
+Text(Sidebar, CONFIG.Name, 13, T.Text, F.Black, UDim2.fromOffset(56, 12), UDim2.fromOffset(116, 16))
+Text(Sidebar, CONFIG.Version, 10, T.Muted, F.Medium, UDim2.fromOffset(56, 29), UDim2.fromOffset(116, 14))
+New("Frame", { Parent = Sidebar, Position = UDim2.fromOffset(14, 58), Size = UDim2.fromOffset(SB_W - 28, 1), BackgroundColor3 = T.Stroke, BackgroundTransparency = 0.4, BorderSizePixel = 0 })
+
+local NAV = {
+    { id = "Script", icon = "code", label = "Scripts" },
+    { id = "Credit", icon = "user", label = "Credit" },
+    { id = "Perf",   icon = "bars", label = "FPS & RTX" },
+}
+local TAB_X, TAB_W, TAB_H, TAB_Y0, TAB_GAP = 10, SB_W - 20, 38, 70, 44
+
+local Indicator = New("Frame", {
+    Parent = Sidebar, Position = UDim2.fromOffset(TAB_X, TAB_Y0), Size = UDim2.fromOffset(TAB_W, TAB_H),
+    BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 6,
+})
+Corner(Indicator, 10)
+Gradient(Indicator, Color3.fromRGB(248, 250, 254), Color3.fromRGB(166, 171, 182), 90)
+
+local NavBtn = {}
+local CurrentPage
+for idx, n in ipairs(NAV) do
+    local y = TAB_Y0 + (idx - 1) * TAB_GAP
+    local b = New("TextButton", {
+        Parent = Sidebar, Position = UDim2.fromOffset(TAB_X, y), Size = UDim2.fromOffset(TAB_W, TAB_H),
+        BackgroundTransparency = 1, Text = "", AutoButtonColor = false, ZIndex = 7,
+    })
+    local ic = MakeIcon(n.icon, b, UDim2.new(22 / TAB_W, 0, 0.5, 0), 20, T.Muted)
+    local lbl = Text(b, n.label, 13, T.Muted, F.Bold, UDim2.fromOffset(44, 0), UDim2.new(1, -50, 1, 0))
+    NavBtn[n.id] = { Btn = b, Y = y, Icon = ic, Label = lbl }
+    b.MouseEnter:Connect(function()
+        if CurrentPage ~= n.id then
+            ic.SetColor(T.Text, 0.2)
+            Tween(lbl, 0.2, { TextColor3 = T.Text })
+            Tween(ic.Scale, 0.4, { Scale = ic.Base * 1.18 }, ES.Back)
+        end
+    end)
+    b.MouseLeave:Connect(function()
+        if CurrentPage ~= n.id then
+            ic.SetColor(T.Muted, 0.25)
+            Tween(lbl, 0.25, { TextColor3 = T.Muted })
+        end
+        Tween(ic.Scale, 0.3, { Scale = ic.Base })
+    end)
+end
+
+local ucard = New("Frame", {
+    Parent = Sidebar, Position = UDim2.fromOffset(10, WIN_H - 62), Size = UDim2.fromOffset(SB_W - 20, 52),
+    BackgroundColor3 = T.Panel2, BackgroundTransparency = 0.3, BorderSizePixel = 0,
+})
+Corner(ucard, 12)
+Stroke(ucard, T.Stroke, 1, 0.55)
+local Avatar = New("ImageLabel", { Parent = ucard, Position = UDim2.fromOffset(9, 9), Size = UDim2.fromOffset(34, 34), BackgroundColor3 = T.Panel, BorderSizePixel = 0, Image = "" })
+Corner(Avatar, 99)
+Stroke(Avatar, T.Chrome, 1.5, 0.2)
+task.spawn(function()
+    local ok, img = pcall(function()
+        return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+    end)
+    if ok and img then Avatar.Image = img end
+end)
+local dn = Text(ucard, LocalPlayer.DisplayName, 12, T.Text, F.Bold, UDim2.fromOffset(52, 9), UDim2.fromOffset(94, 16))
+dn.TextTruncate = Enum.TextTruncate.AtEnd
+local un = Text(ucard, "@" .. LocalPlayer.Name, 10, T.Muted, F.Regular, UDim2.fromOffset(52, 26), UDim2.fromOffset(94, 14))
+un.TextTruncate = Enum.TextTruncate.AtEnd
+
+local TopBar = New("Frame", {
+    Parent = Window, Position = UDim2.fromOffset(SB_W, 0), Size = UDim2.fromOffset(WIN_W - SB_W, TOP_H),
+    BackgroundColor3 = Color3.fromRGB(10, 10, 12), BackgroundTransparency = 0.25, BorderSizePixel = 0,
+})
+New("Frame", { Parent = TopBar, Position = UDim2.new(0, 0, 1, -1), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = T.Stroke, BackgroundTransparency = 0.45, BorderSizePixel = 0 })
+local PageTitle = Text(TopBar, "Scripts", 17, T.Text, F.Bold, UDim2.fromOffset(20, 9), UDim2.fromOffset(230, 20))
+local PageSub   = Text(TopBar, "Execute your scripts", 11, T.Muted, F.Regular, UDim2.fromOffset(20, 31), UDim2.fromOffset(230, 14))
+
+local badge = Pill(TopBar, "WHITELISTED", T.Green, UDim2.new(1, -232, 0, 13), UDim2.fromOffset(136, 28), 11)
+local bdot = New("Frame", { Parent = badge, Position = UDim2.fromOffset(16, 10), Size = UDim2.fromOffset(8, 8), BackgroundColor3 = T.Green, BorderSizePixel = 0 })
+Corner(bdot, 99)
+Pulse(bdot)
+
+IconButton(TopBar, "minus", UDim2.new(1, -84, 0, 11), UDim2.fromOffset(32, 32), function() SetVisible(false) end)
+do
+    local _, _, xi = IconButton(TopBar, "x", UDim2.new(1, -46, 0, 11), UDim2.fromOffset(32, 32), function() Unload() end, T.ChromeLt)
+    xi.Frame.Parent.MouseEnter:Connect(function() Tween(xi.Frame, 0.4, { Rotation = 90 }, ES.Back) end)
+    xi.Frame.Parent.MouseLeave:Connect(function() Tween(xi.Frame, 0.4, { Rotation = 0 }, ES.Back) end)
+end
+
+local PageMeta = {
+    Script = { "Scripts",   "Execute your scripts" },
+    Credit = { "Credit",    "Meet the team behind TRC SERVICE" },
+    Perf   = { "FPS & RTX", "Performance and visuals" },
+}
+local PageOrder = { Script = 1, Credit = 2, Perf = 3 }
+local SwitchToken = 0
+
+local function SelectPage(id)
+    if CurrentPage == id then return end
+    local prevId = CurrentPage
+    CurrentPage = id
+    SwitchToken = SwitchToken + 1
+    local token = SwitchToken
+    local dir = 0
+    if prevId then dir = (PageOrder[id] > PageOrder[prevId]) and 1 or -1 end
+
+    Tween(Indicator, 0.6, { Position = UDim2.fromOffset(TAB_X, NavBtn[id].Y) }, ES.Back)
+    for k, nb in pairs(NavBtn) do
+        local sel = (k == id)
+        nb.Icon.SetColor(sel and T.Ink or T.Muted, 0.25)
+        Tween(nb.Label, 0.25, { TextColor3 = sel and T.Ink or T.Muted })
+    end
+    local ic = NavBtn[id].Icon
+    ic.Scale.Scale = ic.Base * 0.55
+    Tween(ic.Scale, 0.8, { Scale = ic.Base }, ES.Elastic)
+
+    Tween(PageTitle, 0.15, { TextTransparency = 1 }, ES.Quad)
+    Tween(PageSub, 0.15, { TextTransparency = 1 }, ES.Quad)
+    task.delay(0.15, function()
+        local meta = PageMeta[CurrentPage]
+        PageTitle.Text, PageSub.Text = meta[1], meta[2]
+        PageTitle.Position = UDim2.fromOffset(36, 9)
+        PageSub.Position = UDim2.fromOffset(44, 31)
+        Tween(PageTitle, 0.35, { TextTransparency = 0 }, ES.Quad)
+        Tween(PageSub, 0.35, { TextTransparency = 0 }, ES.Quad)
+        Tween(PageTitle, 0.6, { Position = UDim2.fromOffset(20, 9) }, ES.Back)
+        Tween(PageSub, 0.6, { Position = UDim2.fromOffset(20, 31) }, ES.Back)
+    end)
+
+    local prev = prevId and Pages[prevId]
+    if prev then
+        for _, s in ipairs(prev.Sections) do
+            SecTween(s, 0.22, 1, ES.Quad, ED.In)
+        end
+        if prev.Tw then prev.Tw:Cancel() end
+        prev.Tw = Tween(prev.Scroller, 0.22, { Position = UDim2.fromOffset(-dir * 26, 0) }, ES.Quad, ED.In)
+        task.delay(0.24, function()
+            if token == SwitchToken then prev.Frame.Visible = false end
+        end)
+    end
+
+    local pg = Pages[id]
+    if pg.Tw then pg.Tw:Cancel() end
+    pg.Frame.Visible = true
+    pg.Scroller.CanvasPosition = Vector2.new(0, 0)
+    pg.Scroller.Position = (dir == 0) and UDim2.fromOffset(0, 30) or UDim2.fromOffset(dir * 40, 0)
+    local lead = prev and 0.14 or 0.05
+    task.delay(lead, function()
+        if token == SwitchToken then
+            pg.Tw = Tween(pg.Scroller, 0.8, { Position = UDim2.new() }, ES.Back)
+        end
+    end)
+    for i, s in ipairs(pg.Sections) do
+        if s.Tw then s.Tw:Cancel() end
+        s.Frame.GroupTransparency = 1
+        task.delay(0.075 * (i - 1) + lead, function()
+            if token == SwitchToken then
+                SecTween(s, 0.8, s.Rest, ES.Quad, ED.Out)
+            end
+        end)
+    end
+end
+
+for _, n in ipairs(NAV) do
+    Tap(NavBtn[n.id].Btn, function() SelectPage(n.id) end)
+end
+
+local Orb, OrbPop = Logo(Gui, 46, UDim2.new(0, 14, 0.5, -23))
+Orb.Active = true
+Orb.Visible = false
+
+local OrbHalo = New("Frame", {
+    Parent = Orb, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+    Size = UDim2.fromOffset(46, 46), BackgroundTransparency = 1, BorderSizePixel = 0,
+})
+New("UICorner", { CornerRadius = UDim.new(0.32, 0), Parent = OrbHalo })
+local HaloStroke = Stroke(OrbHalo, WHITE, 1.5, 1)
+task.spawn(function()
+    while Alive do
+        task.wait(2.8)
+        if Alive and Orb.Visible and not UIOpen then
+            OrbHalo.Size = UDim2.fromOffset(46, 46)
+            HaloStroke.Transparency = 0.55
+            Tween(OrbHalo, 1.3, { Size = UDim2.fromOffset(78, 78) }, ES.Quint)
+            Tween(HaloStroke, 1.3, { Transparency = 1 }, ES.Quad)
+        end
+    end
+end)
+
+function SetVisible(v)
+    UIOpen = v
+    if v then
+        if not Root.Visible then
+            WinScale.Scale = 0.8
+            Window.Position = UDim2.fromScale(0.5, 0.57)
+        end
+        Root.Visible = true
+        Tween(WinScale, 0.75, { Scale = 1 }, ES.Back)
+        Tween(Window, 0.75, { Position = UDim2.fromScale(0.5, 0.5) }, ES.Back)
+        Tween(Window, 0.35, { GroupTransparency = 0 }, ES.Quad)
+        Tween(WinStroke, 0.35, { Transparency = 0 }, ES.Quad)
+    else
+        Tween(WinScale, 0.35, { Scale = 0.88 }, ES.Quint, ED.In)
+        Tween(Window, 0.35, { Position = UDim2.fromScale(0.5, 0.55) }, ES.Quint, ED.In)
+        Tween(Window, 0.3, { GroupTransparency = 1 }, ES.Quad)
+        Tween(WinStroke, 0.3, { Transparency = 1 }, ES.Quad)
+        OrbPop.Scale = 0.65
+        Tween(OrbPop, 0.8, { Scale = 1 }, ES.Elastic)
+        task.delay(0.37, function() if not UIOpen then Root.Visible = false end end)
+    end
+end
+
+function Unload()
+    if not Alive then return end
+    Alive = false
+    genv.TRC_SERVICE_UNLOAD = nil
+    for _, c in ipairs(Conns) do pcall(function() c:Disconnect() end) end
+    RTX.On = false
+    applyRTX()
+    Tween(WinScale, 0.4, { Scale = 0.85 }, ES.Quint, ED.In)
+    Tween(Window, 0.35, { GroupTransparency = 1 }, ES.Quad)
+    Tween(OrbPop, 0.35, { Scale = 0 }, ES.Back, ED.In)
+    task.delay(0.5, function() Gui:Destroy() end)
+end
+genv.TRC_SERVICE_UNLOAD = Unload
+
+MakeDraggable({ Window, TopBar, Sidebar }, Root, {
+    Keep = 140, KeepTop = true,
+    OnStart = function()
+        if not UIOpen then return end
+        Tween(WinScale, 0.4, { Scale = 1.018 }, ES.Back)
+        Tween(WinStroke, 0.25, { Thickness = 2.4 }, ES.Quad)
+    end,
+    OnEnd = function()
+        Tween(WinScale, 0.7, { Scale = 1 }, ES.Elastic)
+        Tween(WinStroke, 0.35, { Thickness = 1.6 }, ES.Quad)
+    end,
+})
+
+MakeDraggable(Orb, Orb, {
+    OnStart = function() Tween(OrbPop, 0.35, { Scale = 1.2 }, ES.Back) end,
+    OnEnd   = function() Tween(OrbPop, 0.7, { Scale = 1 }, ES.Elastic) end,
+    OnTap   = function() SetVisible(not UIOpen) end,
+})
+
+Bind(UserInputService.InputBegan, function(i, gp)
+    if not gp and i.KeyCode == CONFIG.ToggleKey then SetVisible(not UIOpen) end
+end)
+
+local fAcc, fFrames = 0, 0
+Bind(RunService.RenderStepped, function(dt)
+    for _, s in ipairs(Spinners) do
+        local g = s[1]
+        if g.Parent then g.Rotation = (g.Rotation + dt * s[2]) % 360 end
+    end
+    for _, d in ipairs(Draggables) do d.Step(dt) end
+    fAcc = fAcc + dt
+    fFrames = fFrames + 1
+    if fAcc >= 0.5 then
+        pushFps(math.floor(fFrames / fAcc + 0.5))
+        fAcc, fFrames = 0, 0
+    end
+end)
+
+local function getPing()
+    local ok, v = pcall(function() return Stats.Network.ServerStatsItem["Data Ping"]:GetValue() end)
+    if ok and v then return math.floor(v) end
+    return 0
+end
+
+task.spawn(function()
+    local startT = os.time()
+    local pingHist = {}
+    while Alive do
+        local up = os.time() - startT
+        UpLbl.Text = string.format("%02d:%02d:%02d", math.floor(up / 3600), math.floor((up % 3600) / 60), up % 60)
+
+        local p = getPing()
+        PingLbl.Text = p .. " ms"
+        ChipPing.Text = p .. "ms"
+        table.insert(pingHist, p)
+        if #pingHist > 10 then table.remove(pingHist, 1) end
+        local top = 100
+        for _, v in ipairs(pingHist) do top = math.max(top, v) end
+        local off = 10 - #pingHist
+        for i = 1, 10 do
+            local v = pingHist[i - off]
+            if v then
+                Tween(PingBars[i], 0.6, {
+                    Size = UDim2.new(0.08, 0, 0, math.max(3, math.floor(v / top * 50))),
+                    BackgroundColor3 = (i == 10) and T.ChromeLt or Color3.fromRGB(70, 72, 80),
+                })
+            end
+        end
+        task.wait(1)
+    end
+end)
+
+local SplashJunk = {}
+local SplashRunning = false
+
+local function ClearSplash()
+    SplashRunning = false
+    for _, o in ipairs(SplashJunk) do
+        pcall(function() o:Destroy() end)
+    end
+    SplashJunk = {}
+end
+
+local function Hold(t)
+    task.wait(t)
+    if not Alive then error("intro aborted", 0) end
+end
+
+local function Splash()
+    SplashRunning = true
+    local W, H = 360, 260
+    local LOGO = 60
+    local CY   = 64 - H / 2
+    local function keep(o) table.insert(SplashJunk, o) return o end
+
+    local function Tracked(parent, str, ts, font, color, cx, cy, gap)
+        local glyph, total = {}, 0
+        for i = 1, #str do
+            local ch = str:sub(i, i)
+            local w = ts * 0.45
+            if ch ~= " " then
+                local ok, v = pcall(function()
+                    return TextService:GetTextSize(ch, ts, font, Vector2.new(400, 100)).X
+                end)
+                w = (ok and v) and v or ts * 0.7
+            end
+            glyph[i] = w
+            total = total + w + gap
+        end
+        total = total - gap
+        local list, x = {}, cx - total / 2
+        for i = 1, #str do
+            local ch = str:sub(i, i)
+            if ch ~= " " then
+                local mid = x + glyph[i] / 2
+                local lbl = Text(parent, ch, ts, color, font, UDim2.fromOffset(mid, cy), UDim2.fromOffset(glyph[i] + 8, ts + 8), AX.C)
+                lbl.AnchorPoint = Vector2.new(0.5, 0.5)
+                lbl.TextTransparency = 1
+                table.insert(list, { Label = lbl, X = mid, Y = cy })
+            end
+            x = x + glyph[i] + gap
+        end
+        return list
+    end
+
+    local function Reveal(list, step, dur)
+        for n, l in ipairs(list) do
+            task.delay(step * (n - 1), function()
+                local lb = l.Label
+                if not lb.Parent then return end
+                lb.Position = UDim2.fromOffset(l.X, l.Y + 8)
+                Tween(lb, dur, { TextTransparency = 0 }, ES.Quad)
+                Tween(lb, dur + 0.25, { Position = UDim2.fromOffset(l.X, l.Y) }, ES.Quint)
+            end)
+        end
+    end
+
+    local dim = keep(New("Frame", {
+        Parent = Gui, Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(3, 3, 4),
+        BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 1,
+    }))
+    local blur = keep(New("BlurEffect", { Name = "TRC_IntroBlur", Size = 0, Parent = Lighting }))
+
+    local card = keep(New("CanvasGroup", {
+        Parent = Gui, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(W, H), BackgroundColor3 = Color3.fromRGB(10, 10, 12),
+        GroupTransparency = 1, ZIndex = 3,
+    }))
+    Corner(card, 18)
+    local cardScale = New("UIScale", { Parent = card, Scale = 0.95 })
+    local cardBg = New("Frame", { Parent = card, Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 0 })
+    New("UIGradient", { Parent = cardBg, Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(26, 27, 31), Color3.fromRGB(8, 8, 10)) })
+    local cardStroke = Stroke(card, WHITE, 1, 1)
+    Spin(New("UIGradient", {
+        Parent = cardStroke, Color = CHROME,
+        Transparency = NumberSequence.new({ nk(0, 0.1), nk(0.5, 0.9), nk(1, 0.1) }),
+    }), 60)
+
+    local topLine = New("Frame", { Parent = card, Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0 })
+    New("UIGradient", { Parent = topLine, Transparency = NumberSequence.new({ nk(0, 1), nk(0.5, 0.55), nk(1, 1) }) })
+
+    local lg = keep(New("CanvasGroup", {
+        Parent = Gui, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, CY + 14),
+        Size = UDim2.fromOffset(LOGO + 44, LOGO + 44), BackgroundTransparency = 1,
+        GroupTransparency = 1, ZIndex = 5,
+    }))
+    local lgScale = New("UIScale", { Parent = lg, Scale = 1 })
+    local _, logoPop = Logo(lg, LOGO, UDim2.fromOffset(22, 22))
+    logoPop.Scale = 0.88
+
+    local RING = LOGO + 18
+    local ring = New("Frame", {
+        Parent = lg, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(RING, RING), BackgroundTransparency = 1, BorderSizePixel = 0,
+    })
+    Corner(ring, math.floor(RING * 0.32))
+    local ringStroke = Stroke(ring, WHITE, 1.5, 0)
+    Spin(New("UIGradient", {
+        Parent = ringStroke, Color = ColorSequence.new(T.Chrome, WHITE),
+        Transparency = NumberSequence.new({ nk(0, 1), nk(0.45, 0.92), nk(1, 0.05) }),
+    }), 200)
+
+    local titleLetters = Tracked(card, CONFIG.Name, 19, F.Bold, Color3.fromRGB(236, 239, 245), W / 2, 130, 5)
+    local subLetters   = Tracked(card, "JJB PS+ CHAR", 10, F.Medium, T.Muted, W / 2, 154, 3.5)
+
+    local BX, BW, BY = 50, 260, 218
+    local status = Text(card, "", 11, T.Muted, F.Medium, UDim2.fromOffset(BX, BY - 22), UDim2.fromOffset(190, 14), AX.L)
+    status.TextTransparency = 1
+    status.TextTruncate = Enum.TextTruncate.AtEnd
+    local pctLbl = Text(card, "0%", 11, T.Text, F.Bold, UDim2.fromOffset(BX + BW - 60, BY - 22), UDim2.fromOffset(60, 14), AX.R)
+    pctLbl.TextTransparency = 1
+
+    local bar = New("CanvasGroup", {
+        Parent = card, Position = UDim2.fromOffset(BX, BY), Size = UDim2.fromOffset(BW, 3),
+        BackgroundColor3 = Color3.fromRGB(38, 39, 44), GroupTransparency = 1,
+    })
+    Corner(bar, 99)
+    local fill = New("Frame", { Parent = bar, Size = UDim2.fromScale(0, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0 })
+    Gradient(fill, T.ChromeDk, T.ChromeLt, 0)
+    local shine = New("Frame", { Parent = fill, Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0 })
+    local sg = New("UIGradient", {
+        Parent = shine, Offset = Vector2.new(-1, 0),
+        Transparency = NumberSequence.new({ nk(0, 1), nk(0.5, 0.5), nk(1, 1) }),
+    })
+    TweenService:Create(sg, TweenInfo.new(1.1, ES.Sine, ED.InOut, -1), { Offset = Vector2.new(1, 0) }):Play()
+
+    local footer = Text(card, CONFIG.Version .. "  |  by " .. CONFIG.Developer, 10, T.Muted, F.Regular, UDim2.fromOffset(0, H - 30), UDim2.new(1, 0, 0, 14), AX.C)
+    footer.TextTransparency = 1
+
+    local pv = keep(New("NumberValue", { Parent = Gui, Value = 0 }))
+    pv.Changed:Connect(function(v)
+        fill.Size = UDim2.fromScale(math.clamp(v / 100, 0, 1), 1)
+        pctLbl.Text = math.floor(v + 0.5) .. "%"
+    end)
+    local function Progress(to, t) Tween(pv, t, { Value = to }, ES.Quint) end
+
+    local function setStatus(msg, col)
+        Tween(status, 0.15, { TextTransparency = 1 }, ES.Quad)
+        Hold(0.16)
+        status.Text = msg
+        status.TextColor3 = col or T.Muted
+        status.Position = UDim2.fromOffset(BX, BY - 18)
+        Tween(status, 0.3, { TextTransparency = 0 }, ES.Quad)
+        Tween(status, 0.4, { Position = UDim2.fromOffset(BX, BY - 22) }, ES.Quint)
+    end
+
+    Tween(dim, 0.6, { BackgroundTransparency = 0.3 }, ES.Quad)
+    Tween(blur, 0.8, { Size = 16 }, ES.Quad)
+    Tween(card, 0.5, { GroupTransparency = 0 }, ES.Quad)
+    Tween(cardStroke, 0.6, { Transparency = 0 }, ES.Quad)
+    Tween(cardScale, 0.8, { Scale = 1 }, ES.Quint)
+    Hold(0.3)
+
+    Tween(lg, 0.6, { GroupTransparency = 0 }, ES.Quad)
+    Tween(lg, 0.9, { Position = UDim2.new(0.5, 0, 0.5, CY) }, ES.Quint)
+    Tween(logoPop, 0.9, { Scale = 1 }, ES.Quint)
+    Hold(0.5)
+
+    Reveal(titleLetters, 0.035, 0.45)
+    Hold(0.55)
+    Reveal(subLetters, 0.014, 0.4)
+    Hold(0.4)
+
+    Tween(bar, 0.4, { GroupTransparency = 0 }, ES.Quad)
+    Tween(pctLbl, 0.4, { TextTransparency = 0 }, ES.Quad)
+    Tween(footer, 0.5, { TextTransparency = 0.35 }, ES.Quad)
+    setStatus("Initializing", T.Muted)
+    Progress(24, 0.45)
+    Hold(0.3)
+    setStatus("Verifying access", T.Muted)
+    Progress(52, 0.45)
+    Hold(0.3)
+    setStatus("Welcome, " .. LocalPlayer.Name, T.Green)
+    Progress(80, 0.45)
+    Hold(0.3)
+    setStatus("Loading interface", T.Muted)
+    Progress(100, 0.45)
+    Hold(0.45)
+    setStatus("Ready", T.Green)
+    Hold(0.4)
+
+    SplashRunning = false
+    Tween(ringStroke, 0.3, { Transparency = 1 }, ES.Quad)
+    Tween(card, 0.45, { GroupTransparency = 1 }, ES.Quad)
+    Tween(cardStroke, 0.4, { Transparency = 1 }, ES.Quad)
+    Tween(cardScale, 0.6, { Scale = 0.97 }, ES.Quint)
+    Tween(dim, 0.6, { BackgroundTransparency = 1 }, ES.Quad)
+    Tween(blur, 0.6, { Size = 0 }, ES.Quad)
+    Hold(0.15)
+    Tween(lg, 0.75, { Position = UDim2.new(0, 14 + 23, 0.5, 0) }, ES.Quart, ED.InOut)
+    Tween(lgScale, 0.75, { Scale = 46 / LOGO }, ES.Quart, ED.InOut)
+    Hold(0.8)
+end
+
+task.spawn(function()
+    local ok, err = pcall(Splash)
+    ClearSplash()
+    if not ok and Alive then warn("[TRC SERVICE] intro failed: " .. tostring(err)) end
+    if not Alive then return end
+
+    Orb.Visible = true
+    OrbPop.Scale = 1
+    SetVisible(true)
+    SelectPage("Script")
+    task.delay(0.6, function()
+        if Alive then
+            Toast("Welcome, " .. LocalPlayer.DisplayName .. "  |  RightShift to hide", T.Green)
+        end
+    end)
+end)
