@@ -22,7 +22,7 @@ local CONFIG = {
     FounderLink = "https://guns.lol/redsky0",
     DonateLink  = "https://paypal.me/redskycatlol/5.00",
 
-    Whitelist = { "KENZOM_5", "IRENGpintar_87", "xiomu51", "ryzennece" },
+    Whitelist = { "KENZOM_5", "IRENGpintar_87", "xiomu51", "ryzennece", "stealadexter123"},
 
     KickReason = "You're Not on the whitelist to access this script to access it please buy it on our discord server https://discord.gg/TvU9ycm295",
 }
